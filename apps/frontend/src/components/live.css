@@ -1,0 +1,11 @@
+.live-pipeline-status { display:flex; flex-wrap:wrap; gap:12px; padding:12px 20px; color:#a8bbc7; font-size:12px; }
+.live-pipeline-status [role=alert] { color:#ffd166; }
+.mini-hud .mini-wave i { animation:none !important; transition:height 80ms linear; }
+.mini-state-no_signal .mini-wave i { height:0 !important; }
+.mini-state-no_signal .mini-alert-label { color:#a8bbc7; }
+.evx-calibration { position:relative; font-size:11px; }
+.evx-calibration[open] { background:#111b24; padding:12px; border:1px solid #405262; }
+.evx-calibration input { width:75px; color:#e2f1ff; background:#0b1219; border:1px solid #405262; }
+[hidden] { display:none !important; }
+.evx-escalation-alert { position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:1000; width:min(680px,calc(100vw - 32px)); }
+.mini-hud-fallback { z-index:999; }

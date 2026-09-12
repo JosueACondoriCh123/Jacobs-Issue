@@ -7,6 +7,7 @@ import { HeuristicClassifier } from './heuristicClassifier';
 import { createMemoryPersist } from './ingestClient';
 import type { PersistedRow } from './ingestClient';
 import { createLabelProvider } from './labelProvider';
+import { createLiveLoop } from './liveLoop';
 import { lookupYamnetLabel } from './labels';
 import { resolvePrediction, riskFromDb } from './riskMapper';
 import { scoresToRankedAsync, YamnetClassifier, parseClassMapCsv } from './yamnetClassifier';
@@ -234,10 +235,10 @@ describe('dev4 frontend log-mel YAMNet (espejo de features.py)', () => {
     expect(w).toHaveLength(400);
   });
 
-  it('banco mel 64 bandas x 201 bins con energia positiva', () => {
+  it('banco mel 64 bandas x 257 bins con energia positiva', () => {
     const bank = melFilterbank();
     expect(bank).toHaveLength(64);
-    expect(bank[0]).toHaveLength(201);
+    expect(bank[0]).toHaveLength(257);
     expect(bank.flatMap((f) => Array.from(f)).some((v) => v > 0)).toBe(true);
   });
 
@@ -261,9 +262,9 @@ describe('dev4 frontend log-mel YAMNet (espejo de features.py)', () => {
 });
 
 describe('dev4 grafo YAMNet TF.js (sin TF.js instalado)', () => {
-  it('load() falla limpio cuando TF.js no esta instalado', async () => {
+  it('load() falla limpio cuando los archivos del modelo no están disponibles', async () => {
     const c = new YamnetClassifier();
-    await expect(c.load()).rejects.toThrow(/TF\.js no instalado/);
+    await expect(c.load({modelUrl:'invalid-model-url'})).rejects.toThrow(/no se pudo cargar el modelo/);
     expect(c.isLoaded).toBe(false);
   });
 
@@ -292,5 +293,57 @@ describe('dev4 grafo YAMNet TF.js (sin TF.js instalado)', () => {
     expect(ranked[0].confidence).toBeCloseTo(0.93, 5);
     expect(ranked).toHaveLength(521);
     expect(disposed).toBe(true);
+  });
+});
+
+describe('dev4 circuito en vivo: tick 100 ms, presupuesto 50 ms', () => {
+  it('push() clasifica dentro del presupuesto y expone etiqueta viva', () => {
+    const loop = createLiveLoop();
+    expect(loop.current).toBe('Sonido sin clasificar');
+    const r = loop.push(synthSpeechLike(), 62);
+    expect(r.label).toBe('Voz / conversación');
+    expect(r.overrun).toBe(false);
+    expect(r.elapsedMs).toBeLessThan(50);
+    expect(loop.current).toBe('Voz / conversación');
+    loop.stop();
+  });
+
+  it('puerta >0.80: baja confianza no etiqueta ni persiste', () => {
+    const loop = createLiveLoop();
+    const r = loop.push(new Float32Array(15360).fill(0.001), 60);
+    expect(r.confident).toBe(false);
+    expect(loop.current).toBe('Sonido sin clasificar');
+    loop.stop();
+  });
+
+  it('parche log-mel 96x64 tambien cabe en el presupuesto', () => {
+    const start = performance.now();
+    const patch = frameToPatch(synthTone(440, 0.4));
+    const elapsed = performance.now() - start;
+    expect(patch).toHaveLength(96 * 64);
+    expect(elapsed).toBeLessThan(50);
+  });
+
+  it('stats cuentan inferencias y overruns sin bloquear', () => {
+    const loop = createLiveLoop({ budgetMs: -1 });
+    loop.push(synthTone(1800, 0.5), 96.5);
+    expect(loop.stats.inferences).toBe(1);
+    expect(loop.stats.overruns).toBe(1);
+    expect(loop.stats.lastLabel).toBe('Sirena de emergencia');
+    loop.stop();
+  });
+
+  it('circuito completo: frame -> etiqueta viva + fila persistida', async () => {
+    const sink: PersistedRow[] = [];
+    const bridge = bridgeWithMemory(sink);
+    const loop = createLiveLoop();
+    const frame = { pcm: synthTone(1800, 0.5), ...FRAME, peakDb: 96.5 };
+    const live = loop.push(frame.pcm, frame.peakDb);
+    const stored = await bridge.handleFrame(frame);
+    expect(live.label).toBe('Sirena de emergencia');
+    expect(loop.current).toBe('Sirena de emergencia');
+    expect(stored?.persisted).toBe(true);
+    expect(sink[0]).toMatchObject({ sound_label: 'Sirena de emergencia', risk_level: 'CRITICAL' });
+    loop.stop();
   });
 });

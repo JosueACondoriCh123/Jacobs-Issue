@@ -11,8 +11,8 @@ import { riskFromDb } from './dsp/spl.js'
 import type { DspTelemetry } from './types'
 import { UNCLASSIFIED } from './types'
 
-const SPL_OFFSET_KEY = 'echovision.splOffsetDb'
-const MIC_DISTANCE_KEY = 'echovision.micDistanceM'
+const SPL_OFFSET_KEY = 'jacobs-issue.splOffsetDb'
+const MIC_DISTANCE_KEY = 'jacobs-issue.micDistanceM'
 
 const el = <T extends HTMLElement>(id: string): T => {
   const node = document.getElementById(id)

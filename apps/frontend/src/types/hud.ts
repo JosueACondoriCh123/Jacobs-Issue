@@ -16,6 +16,14 @@ export interface HUDTelemetryEvent extends HUDTelemetry {
   receivedAt: string
   latencyMs: number | null
   source: 'idle' | 'mock' | 'broadcast' | 'postgres'
+    | 'local'
+  kind?: 'level' | 'event'
+  spatialConfidence?: number
+  directionValid?: boolean
+  model?: string
+  capturedAt?: string
+  emittedAt?: string
+  persistence?: 'LOCAL' | 'SAVING' | 'SAVED' | 'ERROR'
 }
 
 export interface AcousticEventRow {
@@ -28,4 +36,5 @@ export interface AcousticEventRow {
   azimuth_angle?: number
   captured_at?: string
   emitted_at?: string
+  metadata?: Record<string, unknown>
 }

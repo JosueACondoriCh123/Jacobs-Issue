@@ -13,6 +13,16 @@ import { TelemetryPublisher } from '../audio/telemetryPublisher'
 import type { CaptureStatus, DspSnapshot, DspTelemetry } from '../audio/types'
 import { UNCLASSIFIED } from '../audio/types'
 import type { RiskLevel } from '../types/hud'
+import { YamnetClassifier } from '../ai/yamnetClassifier'
+import { NeuralPipeline, type ModelState, type PersistenceState } from '../ai/neuralPipeline'
+import { normalizeTelemetry, mapAcousticEvent } from '../lib/telemetry'
+import { persistLiveEvent } from '../lib/liveBackend'
+import { useHudTelemetry } from '../hooks/useHudTelemetry'
+import { useMiniHudWindow } from '../hooks/useMiniHudWindow'
+import { useAuth } from '../hooks/useAuth'
+import { getSignalState, type SignalState } from '../lib/signalState'
+import type { HUDTelemetryEvent, AcousticEventRow } from '../types/hud'
+import { supabase } from '../lib/supabase'
 
 /**
  * Estado compartido por las seis pantallas.
@@ -68,6 +78,10 @@ export const ZONE_PROFILES: Record<ZoneMode, ZoneProfile> = {
 }
 
 export interface AcousticEvent {
+  confidence?: number
+  directionValid?: boolean
+  persistence?: PersistenceState
+  model?: string
   id: string
   at: number
   label: string
@@ -101,6 +115,16 @@ export interface DoseSample {
 }
 
 interface StoreValue {
+  auth: ReturnType<typeof useAuth>
+  hud: ReturnType<typeof useHudTelemetry>
+  miniHud: ReturnType<typeof useMiniHudWindow>
+  signal: SignalState
+  modelState: ModelState
+  modelError: string | null
+  persistenceState: PersistenceState
+  persistenceError: string | null
+  splOffsetDb: number
+  setSplOffsetDb: (value:number) => void
   engine: AudioCaptureEngine
   status: CaptureStatus
   telemetry: DspTelemetry | null
@@ -127,9 +151,9 @@ interface StoreValue {
 
 const StoreContext = createContext<StoreValue | null>(null)
 
-const EVENTS_KEY = 'echovision.events.v1'
-const ZONE_KEY = 'echovision.zone'
-const DOSE_KEY = 'echovision.dose.v1'
+const EVENTS_KEY = 'jacobs-issue.events.v1'
+const ZONE_KEY = 'jacobs-issue.zone'
+const DOSE_KEY = 'jacobs-issue.dose.v1'
 const MAX_EVENTS = 200
 /** Una muestra por segundo durante 12 h caben de sobra en localStorage. */
 const MAX_DOSE_SAMPLES = 43200
@@ -166,11 +190,36 @@ function loadDose(): DoseSample[] {
 }
 
 export function EchoStoreProvider({ children }: { children: ReactNode }) {
+  const auth=useAuth()
+  const realtimeHud=useHudTelemetry(auth.user?.id)
+  const miniHud=useMiniHudWindow()
   const engineRef = useRef<AudioCaptureEngine | null>(null)
   if (!engineRef.current) engineRef.current = new AudioCaptureEngine()
   const engine = engineRef.current
 
   const publisherRef = useRef<TelemetryPublisher | null>(null)
+  const modelRef=useRef(new YamnetClassifier())
+  const pipelineRef=useRef<NeuralPipeline | null>(null)
+  const latestDsp=useRef<DspTelemetry | null>(null)
+  const lastPrediction=useRef({label:UNCLASSIFIED,confidence:0,risk:'NORMAL' as RiskLevel,at:0})
+  const lastSampleAt=useRef<number | null>(null)
+  const stopped=useRef(false)
+  const runGeneration=useRef(0)
+  const starting=useRef(false)
+  const modelLoading=useRef<Promise<void> | null>(null)
+  const [clock,setClock]=useState(Date.now())
+  const [captureFailure,setCaptureFailure]=useState<SignalState | null>(null)
+  const [modelState,setModelState]=useState<ModelState>('IDLE')
+  const [modelError,setModelError]=useState<string | null>(null)
+  const [persistenceState,setPersistenceState]=useState<PersistenceState>('LOCAL')
+  const [publisherError,setPublisherError]=useState<string | null>(null)
+  const [persistenceError,setPersistenceError]=useState<string | null>(null)
+  const [splOffsetDb,setOffset]=useState(readSplOffset)
+  const setSplOffsetDb=useCallback((value:number) => {
+    if (!Number.isFinite(value) || value < -140 || value > 140) return
+    setOffset(value); engine.setSplOffset(value)
+    try { localStorage.setItem('jacobs-issue.splOffsetDb',String(value)) } catch { /* local storage unavailable */ }
+  },[engine])
 
   const [status, setStatus] = useState<CaptureStatus>(engine.status)
   const [telemetry, setTelemetry] = useState<DspTelemetry | null>(null)
@@ -203,23 +252,40 @@ export function EchoStoreProvider({ children }: { children: ReactNode }) {
   )
 
   const start = useCallback(async () => {
+    if (starting.current || engine.isActive) return
+    starting.current=true
     setError(null)
+    setCaptureFailure('STARTING'); stopped.current=false; lastSampleAt.current=null
+    const generation=++runGeneration.current
     try {
-      if (!publisherRef.current) {
-        publisherRef.current = new TelemetryPublisher()
-        await publisherRef.current.connect()
-      }
       const st = await engine.start({ splOffsetDb: readSplOffset() })
+      if (generation !== runGeneration.current) {engine.stop();return}
+      setCaptureFailure(null)
       engine.setOnsetThreshold(ZONE_PROFILES[zoneRef.current].triggerDb)
       setStatus(st)
       setIsRunning(true)
+      const publisher=new TelemetryPublisher({deviceId:readDeviceId(),onError:setPublisherError})
+      publisherRef.current=publisher
+      setPublisherError(null)
+      void publisher.connect().catch(e => setPublisherError(`Realtime: ${e.message}`))
+      if (!modelRef.current.isLoaded) {
+        setModelState('LOADING'); setModelError(null)
+        modelLoading.current ??= modelRef.current.load().finally(() => { modelLoading.current=null })
+        void modelLoading.current.then(() => { setModelState('READY') })
+          .catch(e => { modelRef.current.dispose();setModelState('ERROR');setModelError(e.message) })
+      } else setModelState('READY')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setIsRunning(false)
-    }
+      engine.stop()
+      setCaptureFailure(e instanceof DOMException && e.name === 'NotAllowedError' ? 'DENIED' : e instanceof DOMException && e.name === 'NotFoundError' ? 'DISCONNECTED' : 'ERROR')
+    } finally { starting.current=false }
   }, [engine])
 
   const stop = useCallback(() => {
+    runGeneration.current++; stopped.current=true;setCaptureFailure(null); lastSampleAt.current=null
+    pipelineRef.current?.reset(); lastPrediction.current={label:UNCLASSIFIED,confidence:0,risk:'NORMAL',at:0}
+    void publisherRef.current?.disconnect(); publisherRef.current=null
     engine.stop()
     setStatus(engine.status)
     setIsRunning(false)
@@ -227,15 +293,74 @@ export function EchoStoreProvider({ children }: { children: ReactNode }) {
   }, [engine])
 
   useEffect(() => {
-    const offStatus = engine.onStatusChange(setStatus)
+    const timer=window.setInterval(() => setClock(Date.now()),250)
+    return () => window.clearInterval(timer)
+  },[])
+
+  useEffect(() => {
+    const pipeline=new NeuralPipeline({
+      classifier:modelRef.current,persist:persistLiveEvent,
+      onPrediction:(label,confidence,risk) => { lastPrediction.current={label,confidence,risk,at:Date.now()} },
+      onEvent:(event) => {
+        setPersistenceState(event.persistence ?? 'LOCAL')
+        if (event.persistence === 'SAVED') setPersistenceError(null)
+        setEvents(prev => {
+          const old=prev.find(e => e.id === event.id)
+          const next:AcousticEvent={id:event.id,at:Date.parse(event.timestamp),label:event.label,risk:event.risk,
+            decibels:event.intensity,azimuth:event.azimuth,spatialConfidence:event.spatialConfidence ?? 0,
+            directionValid:event.directionValid,confidence:event.confidence,persistence:event.persistence,model:event.model,
+            noiseFloorDb:latestDsp.current?.noiseFloorDb ?? 0,zone:zoneRef.current,pcm:null,
+            breakdown:[{label:event.label,confidence:event.confidence}],reviewed:old?.reviewed ?? false,falsePositive:old?.falsePositive ?? false}
+          return [next,...prev.filter(e => e.id !== event.id)].slice(0,MAX_EVENTS)
+        })
+      },
+      onConfirmed:event => { try { publisherRef.current?.publishEvent(event) } catch(e) { setPersistenceError(String(e)) } },
+      onError:message => { setPersistenceError(message); setPersistenceState('ERROR'); if (message.startsWith('Inferencia')) {modelRef.current.dispose();pipelineRef.current?.reset();setModelState('ERROR');setModelError(message)} },
+    })
+    pipelineRef.current=pipeline
+    const off=engine.onFrame(frame => {
+      if (!modelRef.current.isLoaded || !engine.isActive) return
+      const t=latestDsp.current
+      pipeline.push({...frame,spatialConfidence:t?.spatialConfidence ?? 0,directionValid:t?.effectiveStereo === true && (t?.spatialConfidence ?? 0)>0.2})
+    })
+    return () => {off();pipeline.reset();engine.stop();void publisherRef.current?.disconnect()}
+  },[engine])
+
+  useEffect(() => {
+    if (!supabase || !auth.user) return
+    let cancelled=false
+    void supabase.from('acoustic_event_logs').select('*').eq('user_id',auth.user.id).order('timestamp',{ascending:false}).limit(60).then(({data,error}) => {
+      if (cancelled) return
+      if (error) { setPersistenceError(`Historial: ${error.message}`); return }
+      const remote=(data ?? []).map(row => {
+        const e=mapAcousticEvent(row as AcousticEventRow)
+        return {id:e.id,at:Date.parse(e.timestamp),label:e.label,risk:e.risk,decibels:e.intensity,azimuth:e.azimuth,
+          confidence:e.confidence,spatialConfidence:e.spatialConfidence ?? 0,directionValid:e.directionValid,persistence:'SAVED' as const,
+          model:e.model,noiseFloorDb:0,zone:zoneRef.current,pcm:null,breakdown:[{label:e.label,confidence:e.confidence}],reviewed:false,falsePositive:false}
+      })
+      setEvents(prev => [...prev,...remote.filter(e => !prev.some(p => p.id===e.id))].sort((a,b) => b.at-a.at).slice(0,MAX_EVENTS))
+    })
+    return () => {cancelled=true}
+  },[auth.user?.id])
+
+  useEffect(() => {
+    const offStatus = engine.onStatusChange(st => {
+      setStatus(st)
+      if (!st.active && !stopped.current && lastSampleAt.current !== null) {
+        setCaptureFailure('DISCONNECTED');setIsRunning(false);setTelemetry(null)
+        pipelineRef.current?.reset();void publisherRef.current?.disconnect();publisherRef.current=null
+      }
+    })
 
     const offSnap = engine.onSnapshot((s) => {
       pendingSnapshot.current = s
     })
 
     const offTelemetry = engine.onTelemetry((t) => {
+      lastSampleAt.current=Date.now(); latestDsp.current=t
       setTelemetry(t)
-      publisherRef.current?.publish(t)
+      const p=Date.now()-lastPrediction.current.at <= 2000 ? lastPrediction.current : {label:UNCLASSIFIED,confidence:0,risk:'NORMAL' as RiskLevel}
+      publisherRef.current?.publish(t,p.label,{confidence:p.confidence,model:modelRef.current.modelName,risk:p.risk})
 
       // Dosimetría: una muestra por segundo basta para integrar la exposición y
       // evita llenar la memoria con 20 valores por segundo que no aportan nada.
@@ -330,7 +455,17 @@ export function EchoStoreProvider({ children }: { children: ReactNode }) {
 
   const unreviewed = useMemo(() => events.filter((e) => !e.reviewed).length, [events])
 
+  const signal=captureFailure ?? getSignalState(isRunning,lastSampleAt.current,clock,stopped.current)
+  const p=clock-lastPrediction.current.at <= 2000 ? lastPrediction.current : {label:UNCLASSIFIED,confidence:0,risk:'NORMAL' as RiskLevel}
+  const localReading=telemetry ? normalizeTelemetry({id:`level-${telemetry.audioTimeMs}`,kind:'level',intensity:telemetry.db,
+    label:p.label,confidence:p.confidence,risk:p.risk==='CRITICAL' ? 'CRITICAL' : telemetry.risk,
+    azimuth:telemetry.azimuth,spatialConfidence:telemetry.spatialConfidence,directionValid:telemetry.effectiveStereo,
+    timestamp:new Date(lastSampleAt.current ?? clock).toISOString(),model:modelRef.current.modelName},'local') : null
+  const received=realtimeHud.telemetry
+  const freshReceived=received.source !== 'idle' && clock-Date.parse(received.capturedAt ?? received.timestamp) <= 2000
+  const visibleReading=signal === 'LIVE' ? (freshReceived ? received : localReading ?? received) : normalizeTelemetry({id:'no-signal',kind:'level',label:'Sin señal',intensity:0,risk:'NORMAL',confidence:0},'idle')
   const value: StoreValue = {
+    auth,hud:{...realtimeHud,error:realtimeHud.error ?? publisherError,connection:publisherError ? 'ERROR' : realtimeHud.connection,telemetry:visibleReading},miniHud,signal,modelState,modelError,persistenceState,persistenceError,splOffsetDb,setSplOffsetDb,
     engine,
     status,
     telemetry,
@@ -362,8 +497,9 @@ export function useEchoStore(): StoreValue {
 
 function readSplOffset(): number {
   try {
-    const v = Number(localStorage.getItem('echovision.splOffsetDb'))
-    return Number.isFinite(v) && v > 0 ? v : 100
+    const raw = localStorage.getItem('jacobs-issue.splOffsetDb')
+    const v = raw === null ? NaN : Number(raw)
+    return Number.isFinite(v) && v >= -140 && v <= 140 ? v : 100
   } catch {
     return 100
   }
@@ -371,7 +507,7 @@ function readSplOffset(): number {
 
 function readDeviceId(): string {
   try {
-    return localStorage.getItem('echovision.device_id') || 'hud-primary'
+    return localStorage.getItem('jacobs-issue.device_id') || 'hud-primary'
   } catch {
     return 'hud-primary'
   }

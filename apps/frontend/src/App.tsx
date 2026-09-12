@@ -1,13 +1,12 @@
-import { createPortal } from 'react-dom'
+import { useEchoStore } from './shell/store'
+import { signalLabels } from './lib/signalState'
 import { AuthControl } from './components/AuthControl'
 import { EventLog } from './components/EventLog'
 import { HudCanvas } from './components/HudCanvas'
 import { MiniHud } from './components/MiniHud'
 import { TelemetryPanel } from './components/TelemetryPanel'
 import { ThreeBackdrop } from './components/ThreeBackdrop'
-import { useAuth } from './hooks/useAuth'
-import { useHudTelemetry } from './hooks/useHudTelemetry'
-import { useMiniHudWindow } from './hooks/useMiniHudWindow'
+
 
 const statusLabel = {
   CONNECTING: 'SINCRONIZANDO',
@@ -16,9 +15,7 @@ const statusLabel = {
 } as const
 
 function App() {
-  const auth = useAuth()
-  const hud = useHudTelemetry()
-  const miniHud = useMiniHudWindow()
+  const {auth,hud,miniHud,signal,modelState,modelError,persistenceState,persistenceError}=useEchoStore()
   const isCritical = hud.telemetry.risk === 'CRITICAL'
   const isMiniPreview =
     import.meta.env.DEV && new URLSearchParams(window.location.search).has('mini-preview')
@@ -37,7 +34,7 @@ function App() {
       <div className="noise-layer" aria-hidden="true" />
 
       <header className="topbar">
-        <a className="brand" href="#main-hud" aria-label="EchoVision inicio">
+        <a className="brand" href="#main-hud" aria-label="Jacobs Issue inicio">
           <span className="brand-glyph" aria-hidden="true">
             <i />
             <i />
@@ -76,6 +73,10 @@ function App() {
         </div>
       </header>
 
+      <div className="live-pipeline-status" role="status">
+        <span>{signalLabels[signal]}</span><span>YAMNet: {modelState}</span><span>Persistencia: {persistenceState}</span>
+        {modelError ? <span role="alert">{modelError}</span> : null}{persistenceError ? <span role="alert">{persistenceError}</span> : null}
+      </div>
       <section className="workspace" id="main-hud">
         <TelemetryPanel
           telemetry={hud.telemetry}
@@ -94,14 +95,14 @@ function App() {
             <span>FUENTE IDENTIFICADA</span>
             <h1 id="event-heading">{hud.telemetry.label}</h1>
             <p>
-              Vector <strong>{Math.round(hud.telemetry.azimuth)}°</strong>
+              Dirección <strong>{hud.telemetry.directionValid ? `${Math.round(hud.telemetry.azimuth)}°` : 'No disponible'}</strong>
               <i aria-hidden="true" />
-              Intensidad <strong>{hud.telemetry.intensity.toFixed(1)} dB</strong>
+              Intensidad <strong>{signal === 'LIVE' ? `${hud.telemetry.intensity.toFixed(1)} dB estimados` : 'Sin lectura actual'}</strong>
             </p>
           </div>
 
-          <div className="orientation-label orientation-north">NORTE</div>
-          <div className="orientation-label orientation-south">SUR</div>
+          <div className="orientation-label orientation-north">FRENTE</div>
+          <div className="orientation-label orientation-south">ATRÁS</div>
         </section>
 
         <EventLog history={hud.history} />
@@ -109,9 +110,9 @@ function App() {
 
       <footer className="control-deck">
         <div className="legend" aria-label="Leyenda de riesgo">
-          <span><i className="risk-normal" /> Normal</span>
-          <span><i className="risk-advisory" /> Atención</span>
-          <span><i className="risk-critical" /> Crítico</span>
+          <span title="Normal"><i className="risk-normal" /> Normal</span>
+          <span title="Atención"><i className="risk-advisory" /> Atención</span>
+          <span title="Crítico"><i className="risk-critical" /> Crítico</span>
         </div>
 
         <div className="mission-copy">
@@ -131,20 +132,9 @@ function App() {
       {auth.error ? <div className="auth-toast" role="alert">{auth.error}</div> : null}
       {hud.error ? <div className="realtime-toast" role="alert">{hud.error}</div> : null}
       {miniHud.error ? <div className="mini-hud-note" role="status">Vista compacta activada: {miniHud.error}</div> : null}
-      {miniHud.fallbackOpen ? (
-        <div className="mini-hud-fallback">
-          <MiniHud telemetry={hud.telemetry} isFloating={false} onClose={miniHud.close} />
-        </div>
-      ) : null}
-      {miniHud.host
-        ? createPortal(
-            <MiniHud telemetry={hud.telemetry} isFloating onClose={miniHud.close} />,
-            miniHud.host,
-          )
-        : null}
       <p className="sr-only" aria-live="assertive">
         {isCritical
-          ? `Alerta crítica: ${hud.telemetry.label}, dirección ${Math.round(hud.telemetry.azimuth)} grados.`
+          ? `Alerta crítica: ${hud.telemetry.label}.`
           : ''}
       </p>
     </main>

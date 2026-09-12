@@ -13,6 +13,7 @@ interface TfTensor {
 }
 
 interface TfLayersModel {
+  predict(inputs: unknown): unknown;
   execute(inputs: unknown, outputs?: string | string[]): unknown;
   executeAsync?(inputs: unknown, outputs?: string | string[]): Promise<unknown>;
   dispose(): void;
@@ -35,7 +36,7 @@ interface TfLike {
 export const YAMNET_TFHUB_URL = 'https://tfhub.dev/google/yamnet/1';
 export const YAMNET_LOCAL_MODEL_URL = 'models/yamnet/model.json';
 
-const TF_SPEC = '@tensorflow/tfjs';
+
 
 /**
  * Convierte yamnet_class_map.csv (index,mid,display_name) en array de 521
@@ -69,7 +70,7 @@ export function parseClassMapCsv(csv: string): string[] {
  *
  * Sin import estatico de TF.js: el bundle NO crece hasta que alguien llama
  * a load(). Sin modelo descargado, load() falla limpio y el puente sigue
- * con el heuristico local. Sin API key en ningun caso: todo corre en device.
+ * sin clasificación. Sin API key: todo corre en el dispositivo.
  */
 export class YamnetClassifier implements AsyncSoundClassifier {
   readonly modelName = 'yamnet-tfjs-v1';
@@ -94,13 +95,11 @@ export class YamnetClassifier implements AsyncSoundClassifier {
     report({ phase: 'tfjs', progress: 0 });
     let tf: TfLike;
     try {
-      const mod = (await import(/* @vite-ignore */ TF_SPEC)) as Record<string, unknown>;
+      const mod = (await import('@tensorflow/tfjs')) as unknown as Record<string, unknown>;
       tf = (mod.default ?? mod) as TfLike;
     } catch {
       throw new Error(
-        "yamnet: TF.js no instalado (opcional, sin API key). Haz 'pnpm add @tensorflow/tfjs' " +
-          'en apps/frontend para inferencia neuronal real en device. ' +
-          'Mientras tanto el heuristico local cubre la demo.',
+        'YAMNet: no se pudo cargar TF.js. El nivel de ruido sigue disponible, pero no hay clasificación.',
       );
     }
     await tf.ready();
@@ -128,8 +127,14 @@ export class YamnetClassifier implements AsyncSoundClassifier {
           `Detalle: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
-    report({ phase: 'ready', progress: 1 });
-    this.backend = 'yamnet';
+    const labelsUrl=new URL('yamnet_class_map.csv',new URL(url,window.location.href));
+    const labelResponse=await fetch(labelsUrl);
+    if (!labelResponse.ok) {this.dispose();throw new Error('No se pudo cargar el mapa YAMNet');}
+    this.labels=parseClassMapCsv(await labelResponse.text());
+    if (this.labels.length!==521 || Array.from(this.labels).some(name=>!name)) {this.dispose();throw new Error('Mapa YAMNet incompleto');}
+    await this.classifyAsync(new Float32Array(YAMNET_SAMPLES));
+    report({ phase:'ready',progress:1 });
+    this.backend='yamnet';
   }
 
   setClassLabels(labels: string[]): void {
@@ -142,7 +147,7 @@ export class YamnetClassifier implements AsyncSoundClassifier {
       throw new Error(`yamnet: ventana de ${pcm.length}, se esperan ${YAMNET_SAMPLES}.`);
     }
     const patch = features ?? frameToPatch(pcm);
-    const input = this.tf.tensor(patch, [1, 96, 64, 1]);
+    const input = this.tf.tensor(patch, [1, 96, 64]);
     try {
       const out = this.model.execute?.(input, 'scores') as TfTensor | undefined;
       if (!out) throw new Error('yamnet: el modelo no expone execute() sincrono.');
@@ -158,12 +163,11 @@ export class YamnetClassifier implements AsyncSoundClassifier {
       throw new Error(`yamnet: ventana de ${pcm.length}, se esperan ${YAMNET_SAMPLES}.`);
     }
     const patch = features ?? frameToPatch(pcm);
-    const input = this.tf.tensor(patch, [1, 96, 64, 1]);
+    const input = this.tf.tensor(patch, [1, 96, 64]);
     try {
-      const exec = this.model.execute;
-      if (exec) {
-        const out = exec.call(this.model, input, 'scores') as TfTensor;
-        return scoresToRanked(out, this.labels);
+      if ('predict' in this.model) {
+        const out=this.model.predict(input) as TfTensor;
+        return await scoresToRankedAsync(out,this.labels);
       }
       const out = (await this.model.executeAsync?.(input, ['scores'])) as TfTensor | undefined;
       if (!out) throw new Error('yamnet: el modelo no expone execute ni executeAsync.');

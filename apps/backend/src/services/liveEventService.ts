@@ -1,5 +1,5 @@
 /**
- * EchoVision (PhonoSpatial HUD) - Live Event Service (Dev 3)
+ * Jacobs Issue (PhonoSpatial HUD) - Live Event Service (Dev 3)
  * Circuito de datos en vivo de latencia cero (Zero Latency Loop < 50 ms)
  * Doble vía: Broadcast inmediato por Realtime + Persistencia ACID en PostgreSQL
  */

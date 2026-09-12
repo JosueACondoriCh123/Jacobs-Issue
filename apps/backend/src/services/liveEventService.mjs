@@ -1,5 +1,5 @@
 /**
- * EchoVision (PhonoSpatial HUD) - Live Event Service (Dev 3) - ESM Version
+ * Jacobs Issue (PhonoSpatial HUD) - Live Event Service (Dev 3) - ESM Version
  * Circuito de datos en vivo de latencia cero (Zero Latency Loop < 50 ms)
  */
 

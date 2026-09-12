@@ -18,6 +18,8 @@ export { classify, classifyLabel, setClassifierEngine, useNeuralBackend } from '
 export type { ClassifyEngine, SimpleClassification } from './classify';
 export { createLabelProvider, LabelProvider } from './labelProvider';
 export type { LabelProviderOptions } from './labelProvider';
+export { createLiveLoop, LiveInferenceLoop } from './liveLoop';
+export type { LiveLoopOptions, LiveLoopStats, LiveResult } from './liveLoop';
 export { ClassifierBridge } from './classifierBridge';
 export type { BridgeOptions } from './classifierBridge';
 export { createMemoryPersist, createSupabasePersist } from './ingestClient';

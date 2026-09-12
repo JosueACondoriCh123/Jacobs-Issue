@@ -1,5 +1,5 @@
 -- ====================================================================
--- EchoVision (PhonoSpatial HUD) - Migración 004: Triggers & Funciones
+-- Jacobs Issue (PhonoSpatial HUD) - Migración 004: Triggers & Funciones
 -- Automatización de Google OAuth y Despacho de Alertas Críticas
 -- ====================================================================
 
@@ -37,7 +37,7 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.email, ''),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', 'Usuario EchoVision'),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', 'Usuario Jacobs Issue'),
     COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'picture', '')
   )
   ON CONFLICT (id) DO UPDATE SET

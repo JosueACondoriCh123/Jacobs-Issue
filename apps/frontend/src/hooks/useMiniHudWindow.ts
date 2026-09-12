@@ -54,13 +54,13 @@ export function useMiniHudWindow() {
         preferInitialWindowPlacement: true,
       })
 
-      nextWindow.document.title = 'EchoVision Mini HUD'
+      nextWindow.document.title = 'Jacobs Issue Mini HUD'
       nextWindow.document.documentElement.className = 'mini-pip-root'
       nextWindow.document.body.className = 'mini-pip-body'
       copyStyles(nextWindow.document)
 
       const nextHost = nextWindow.document.createElement('div')
-      nextHost.id = 'echovision-mini-hud'
+      nextHost.id = 'jacobs-issue-mini-hud'
       nextWindow.document.body.append(nextHost)
       nextWindow.addEventListener(
         'pagehide',

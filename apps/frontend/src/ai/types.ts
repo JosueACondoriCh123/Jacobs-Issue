@@ -47,6 +47,7 @@ export interface SoundClassifier {
 
 /** Clasificador con motor neuronal opcional cargable bajo demanda. */
 export interface AsyncSoundClassifier extends SoundClassifier {
+  classifyAsync(pcm: Float32Array, features?: Float32Array): Promise<RankedPrediction[]>;
   readonly isLoaded: boolean;
   load(opts?: {
     modelUrl?: string;

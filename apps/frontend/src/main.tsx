@@ -1,8 +1,8 @@
 import ReactDOM from 'react-dom/client'
-// Unico cambio de Dev 2 fuera de su territorio: el shell del OS sustituye al
+// Unico cambio de Dev 2 fuera de su territorio: el enrutador raiz sustituye al
 // montaje directo del HUD. `App.tsx` sigue intacto y se renderiza dentro del
-// shell como la pantalla /hud.
-import AppShell from './shell/AppShell'
+// shell del OS como la pantalla /hud.
+import Root from './Root'
 import './styles.css'
 
 /*
@@ -24,4 +24,4 @@ import './styles.css'
  * pantalla cubre el resto de casos. En produccion StrictMode no duplica efectos,
  * asi que `pnpm build` no estaba afectado.
  */
-ReactDOM.createRoot(document.getElementById('root')!).render(<AppShell />)
+ReactDOM.createRoot(document.getElementById('root')!).render(<Root />)

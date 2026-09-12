@@ -18,6 +18,7 @@ describe('telemetry contract adapters', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'event-id' })
     const event = normalizeTelemetry({
       azimuth: 480,
+      directionValid:true,spatialConfidence:0.8,
       intensity: 132,
       label: 'Sirena',
       risk: 'critical',
@@ -45,6 +46,7 @@ describe('telemetry contract adapters', () => {
       decibels: 83.5,
       risk_level: 'ADVISORY',
       azimuth_angle: 271,
+      metadata:{directionValid:true,spatialConfidence:0.8},
     })
 
     expect(event).toMatchObject({
@@ -69,6 +71,7 @@ describe('telemetry contract adapters', () => {
         sound_label: 'Alarma de incendio',
         decibels: 96,
         azimuth_angle: 44,
+        metadata:{directionValid:true,spatialConfidence:0.8},
         confidence: 0.97,
         risk_level: 'CRITICAL',
       },

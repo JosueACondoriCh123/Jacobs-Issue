@@ -1,5 +1,5 @@
 // ====================================================================
-// EchoVision - Test Runner para Fixtures de Dev 3 (Backend Architect)
+// Jacobs Issue - Test Runner para Fixtures de Dev 3 (Backend Architect)
 // Ejecución: node apps/backend/tests/run-fixtures-test.mjs
 // ====================================================================
 
@@ -13,7 +13,7 @@ const fixturesDir = path.join(__dirname, 'fixtures');
 const migrationsDir = path.join(__dirname, '../supabase/migrations');
 
 console.log('====================================================');
-console.log('  ECHOVISION BACKEND // TEST RUNNER DE FIXTURES DEV 3');
+console.log('  JACOBS ISSUE BACKEND // TEST RUNNER DE FIXTURES DEV 3');
 console.log('====================================================\n');
 
 let passedTests = 0;
@@ -66,7 +66,7 @@ function simulateDeviceProvision(body) {
     device_id: deviceId,
     device: {
       id: deviceId,
-      device_name: body.device_name || body.deviceName || (deviceId === 'hud-primary' ? 'EchoVision HUD Primary Unit' : `EchoVision Device (${deviceId})`),
+      device_name: body.device_name || body.deviceName || (deviceId === 'hud-primary' ? 'Jacobs Issue HUD Primary Unit' : `Jacobs Issue Device (${deviceId})`),
       device_room: body.device_room || body.deviceRoom || (deviceId === 'hud-primary' ? 'Master HUD / Central' : 'Sala Principal'),
       battery_level: body.battery_level ?? 100,
       status: body.status || 'online',
@@ -126,7 +126,7 @@ function simulateNotifyEmergency(event, activeContacts) {
     dispatch_type: 'EMAIL_GMAIL',
     recipient: contact.email,
     status: 'SENT',
-    subject: `🚨 ALERTA CRÍTICA ECHOVISION: ${event.sound_label.toUpperCase()}`,
+    subject: `🚨 ALERTA CRÍTICA JACOBS ISSUE: ${event.sound_label.toUpperCase()}`,
     payload: {
       sound_label: event.sound_label,
       decibels: event.decibels,

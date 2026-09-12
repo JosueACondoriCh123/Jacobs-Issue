@@ -26,8 +26,8 @@ export function TelemetryPanel({
         <span>01</span>
       </div>
       <div className="metric-primary">
-        <strong>{telemetry.intensity.toFixed(1)}</strong>
-        <span>dB</span>
+        <strong>{telemetry.source === 'idle' ? '--' : telemetry.intensity.toFixed(1)}</strong>
+        <span>dB estimados</span>
       </div>
       <div className="meter" aria-hidden="true">
         <span style={{ width: `${Math.min(100, telemetry.intensity)}%` }} />
@@ -35,11 +35,14 @@ export function TelemetryPanel({
       <dl className="metric-grid">
         <div>
           <dt>AZIMUTH</dt>
-          <dd>{Math.round(telemetry.azimuth).toString().padStart(3, '0')}°</dd>
+          <dd>{telemetry.directionValid === true ? `${Math.round(telemetry.azimuth)}°` : 'No disponible'}</dd>
         </div>
         <div>
-          <dt>CONFIANZA</dt>
+          <dt>CLASIFICACIÓN</dt>
           <dd>{Math.round(telemetry.confidence * 100)}%</dd>
+        </div>
+        <div>
+          <dt>CONFIANZA ESPACIAL</dt><dd>{Math.round((telemetry.spatialConfidence ?? 0)*100)}%</dd>
         </div>
         <div>
           <dt>PROMEDIO</dt>
@@ -50,13 +53,13 @@ export function TelemetryPanel({
           <dd>{telemetry.source.toUpperCase()}</dd>
         </div>
         <div>
-          <dt>EXTREMO A EXTREMO</dt>
+          <dt>EMISIÓN → RECEPCIÓN</dt>
           <dd className={latencyClass}>
             {deliveryLatency == null ? '--' : `${deliveryLatency} ms`}
           </dd>
         </div>
         <div>
-          <dt>REALTIME → CANVAS</dt>
+          <dt>COLA DE ACTUALIZACIÓN</dt>
           <dd className={renderLatencyMs != null && renderLatencyMs <= 17 ? 'latency-good' : ''}>
             {renderLatencyMs == null ? '--' : `${renderLatencyMs} ms`}
           </dd>

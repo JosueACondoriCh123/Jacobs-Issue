@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[EchoVision] fallo en la pantalla ${this.props.screen}`, error, info)
+    console.error(`[Jacobs Issue] fallo en la pantalla ${this.props.screen}`, error, info)
   }
 
   componentDidUpdate(prev: Props) {

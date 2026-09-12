@@ -26,7 +26,7 @@ const EMIT_INTERVAL_MS = 50; // ~20 Hz
 const YAMNET_FRAME_SAMPLES = 15360;
 const YAMNET_HOP_SAMPLES = 7680;
 
-class EchoVisionDspProcessor extends AudioWorkletProcessor {
+class JacobsIssueDspProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     const opts = (options && options.processorOptions) || {};
@@ -168,7 +168,7 @@ class EchoVisionDspProcessor extends AudioWorkletProcessor {
       // Sin estereo util: no existe informacion direccional. Se genera un angulo
       // estable para que el HUD tenga algo que dibujar, pero con confianza 0
       // explicita, para que pueda atenuarlo en vez de presentarlo como un hecho.
-      this.latestAzimuth = heuristicAzimuthFromSpectrum(bufL, this.fs);
+      this.latestAzimuth = 0; // No spatial information in mono: neutral, invalid.
       this.latestSpatialConfidence = 0;
     }
 
@@ -328,4 +328,4 @@ class EchoVisionDspProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('echovision-dsp', EchoVisionDspProcessor);
+registerProcessor('jacobs-issue-dsp', JacobsIssueDspProcessor);

@@ -1,5 +1,5 @@
 // ====================================================================
-// EchoVision (PhonoSpatial HUD) - Edge Function: scene-narrative
+// Jacobs Issue (PhonoSpatial HUD) - Edge Function: scene-narrative
 // Endpoint: POST /api/v1/intelligence/scene-narrative
 // Síntesis contextual en lenguaje natural mediante LLM/IA de los eventos acústicos
 // ====================================================================
@@ -81,7 +81,7 @@ serve(async (req: Request) => {
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `Eres el motor de asistencia auditiva EchoVision para personas sordas. Sintetiza en 2 oraciones concisas el entorno sonoro actual para el usuario basándote en estos eventos recientes:\n${eventsPrompt}\nResponde en formato JSON con dos campos: "narrative_summary" y "recommended_action".`
+                text: `Eres el motor de asistencia auditiva Jacobs Issue para personas sordas. Sintetiza en 2 oraciones concisas el entorno sonoro actual para el usuario basándote en estos eventos recientes:\n${eventsPrompt}\nResponde en formato JSON con dos campos: "narrative_summary" y "recommended_action".`
               }]
             }],
             generationConfig: { responseMimeType: 'application/json' }

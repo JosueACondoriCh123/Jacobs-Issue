@@ -1,5 +1,5 @@
 /**
- * EchoVision - Contratos Compartidos Inmutables (Single Source of Truth)
+ * Jacobs Issue - Contratos Compartidos Inmutables (Single Source of Truth)
  * Para integración entre Dev 1 (HUD), Dev 2 (DSP), Dev 3 (Backend) y Dev 4 (AI Model).
  */
 
@@ -10,6 +10,13 @@ export interface HUDTelemetry {
   intensity: number;
   label: string;
   risk: RiskLevel;
+  id?: string;
+  kind?: 'level' | 'event';
+  capturedAt?: string;
+  emittedAt?: string;
+  spatialConfidence?: number;
+  directionValid?: boolean;
+  model?: string;
 }
 
 export interface HUDTelemetryEvent extends HUDTelemetry {
@@ -97,4 +104,3 @@ export interface DeviceProvisionResponse {
   device_id: string;
   device: SensorDeviceRow;
 }
-

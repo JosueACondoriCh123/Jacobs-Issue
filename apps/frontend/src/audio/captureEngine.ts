@@ -84,7 +84,14 @@ export class AudioCaptureEngine {
       video: false,
     })
 
+    this.stream = stream
+    try {
     const track = stream.getAudioTracks()[0]
+    if (!track) throw new Error('Micrófono desconectado: no hay pista de audio.')
+    track.addEventListener('ended', () => {
+      if (this.stream !== stream) return
+      this.stop()
+    }, { once: true })
     const settings = track.getSettings()
 
     const warnings: string[] = []
@@ -100,8 +107,10 @@ export class AudioCaptureEngine {
 
     const ctx = new AudioContext({
       latencyHint: 'interactive',
-      sampleRate: settings.sampleRate ?? 48000,
+      sampleRate: 48000,
     })
+    this.ctx = ctx
+    if (ctx.sampleRate !== 48000) throw new Error('El DSP requiere 48 kHz; el navegador no admite esta frecuencia.')
     // Si el usuario no ha interactuado aun, el contexto nace suspendido.
     if (ctx.state === 'suspended') await ctx.resume()
 
@@ -118,7 +127,7 @@ export class AudioCaptureEngine {
       )
     }
 
-    const node = new AudioWorkletNode(ctx, 'echovision-dsp', {
+    const node = new AudioWorkletNode(ctx, 'jacobs-issue-dsp', {
       numberOfInputs: 1,
       // Aunque este nodo solo analiza y no produce sonido, declara una salida a
       // proposito: ver el comentario de `sink` mas abajo.
@@ -147,7 +156,7 @@ export class AudioCaptureEngine {
         this.reconcileStereo(msg.effectiveStereo)
         for (const l of this.telemetryListeners) l(msg)
       } else if (msg.type === 'frame') {
-        for (const l of this.frameListeners) l(msg)
+        for (const l of this.frameListeners) l({...msg,capturedAt:new Date().toISOString()})
       } else if (msg.type === 'snapshot') {
         for (const l of this.snapshotListeners) l(msg)
       }
@@ -191,7 +200,12 @@ export class AudioCaptureEngine {
       warnings,
     }
 
+    for (const l of this.statusListeners) l(this._status)
     return this._status
+    } catch (error) {
+      this.stop()
+      throw error
+    }
   }
 
   /**
@@ -210,7 +224,7 @@ export class AudioCaptureEngine {
     if (!effectiveStereo) {
       warnings.push(
         MONO_WARNING_PREFIX +
-          ': los dos canales no contienen informacion espacial distinta. No hay direccion real; se usa el modo simulado.',
+          ': los dos canales no contienen informacion espacial distinta. No hay dirección medible; el HUD ocultará el vector.',
       )
     }
     this._status = { ...this._status, stereo: effectiveStereo, warnings }
@@ -237,6 +251,7 @@ export class AudioCaptureEngine {
     this.source = null
     this.sink = null
     this._status = { ...IDLE_STATUS }
+    for (const l of this.statusListeners) l(this._status)
   }
 
   onTelemetry(listener: TelemetryListener): () => void {

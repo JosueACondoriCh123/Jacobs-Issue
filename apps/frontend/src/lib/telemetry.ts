@@ -39,7 +39,10 @@ export function normalizeTelemetry(
   source: HUDTelemetryEvent['source'] = 'broadcast',
 ): HUDTelemetryEvent {
   const receivedAtMs = Date.now()
-  const confidence = clamp(toNumber(input.confidence, 0.9), 0, 1)
+  const metadata = isRecord(input.metadata) ? input.metadata : {}
+  const confidence = clamp(toNumber(input.confidence, 0), 0, 1)
+  const spatialConfidence = clamp(toNumber(firstDefined(input.spatialConfidence, metadata.spatialConfidence), 0), 0, 1)
+  const directionValid = firstDefined(input.directionValid, metadata.directionValid) === true && spatialConfidence > 0.2
   const timestamp = String(
     firstDefined(input.capturedAt, input.captured_at, input.timestamp) ??
       new Date(receivedAtMs).toISOString(),
@@ -53,9 +56,7 @@ export function normalizeTelemetry(
 
   return {
     id: String(input.id ?? crypto.randomUUID()),
-    azimuth: normalizeAzimuth(
-      toNumber(firstDefined(input.azimuth, input.azimuth_angle), 0),
-    ),
+
     intensity: clamp(
       toNumber(firstDefined(input.intensity, input.decibels), 0),
       0,
@@ -68,6 +69,14 @@ export function normalizeTelemetry(
     receivedAt: new Date(receivedAtMs).toISOString(),
     latencyMs: calculateLatency(latencyOrigin, receivedAtMs),
     source,
+    kind: input.kind === 'level' ? 'level' : 'event',
+    spatialConfidence,
+    directionValid,
+    azimuth: directionValid ? normalizeAzimuth(toNumber(firstDefined(input.azimuth, input.azimuth_angle), 0)) : 0,
+    model: String(firstDefined(input.model, metadata.model_version) ?? 'unknown'),
+    capturedAt: String(firstDefined(input.capturedAt, input.captured_at, metadata.captured_at, timestamp)),
+    emittedAt: String(firstDefined(input.emittedAt, input.emitted_at, metadata.emitted_at, timestamp)),
+    persistence: input.persistence === 'ERROR' ? 'ERROR' : source === 'postgres' ? 'SAVED' : input.persistence === 'SAVED' ? 'SAVED' : 'LOCAL',
   }
 }
 
@@ -107,6 +116,8 @@ export function mapAcousticEvent(row: AcousticEventRow): HUDTelemetryEvent {
       timestamp: row.timestamp,
       captured_at: row.captured_at,
       emitted_at: row.emitted_at,
+      metadata: row.metadata,
+      kind: 'event',
     },
     'postgres',
   )

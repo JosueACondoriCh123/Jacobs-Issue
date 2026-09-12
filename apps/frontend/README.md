@@ -1,4 +1,4 @@
-# EchoVision HUD - Dev 1
+# Jacobs Issue HUD - Dev 1
 
 Frontend aislado para las responsabilidades de Dev 1:
 

@@ -1,5 +1,5 @@
 /**
- * EchoVision (PhonoSpatial HUD) - Noise Calibration Service (Dev 3)
+ * Jacobs Issue (PhonoSpatial HUD) - Noise Calibration Service (Dev 3)
  * Calibración dinámica del suelo de ruido (Noise Floor) en tiempo real
  */
 

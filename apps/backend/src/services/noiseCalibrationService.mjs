@@ -1,5 +1,5 @@
 /**
- * EchoVision (PhonoSpatial HUD) - Noise Calibration Service - ESM Version
+ * Jacobs Issue (PhonoSpatial HUD) - Noise Calibration Service - ESM Version
  */
 
 export class NoiseCalibrationService {

@@ -10,7 +10,8 @@ import { useEffect, useState } from 'react'
  * el hash funciona al abrir el `dist/` como archivo, sin configurar el servidor.
  */
 
-export const ROUTES = [
+/** Rutas de la aplicacion: viven dentro del shell del OS, con barra lateral. */
+export const APP_ROUTES = [
   '/hud',
   '/forensics',
   '/mesh',
@@ -19,9 +20,23 @@ export const ROUTES = [
   '/dosimetry',
 ] as const
 
-export type Route = (typeof ROUTES)[number]
+/** Rutas publicas: se muestran sin el shell, con el estilo de la landing. */
+export const PUBLIC_ROUTES = ['/', '/login', '/signup'] as const
 
-export const DEFAULT_ROUTE: Route = '/hud'
+export const ROUTES = [...PUBLIC_ROUTES, ...APP_ROUTES] as const
+
+export type Route = (typeof ROUTES)[number]
+export type AppRoute = (typeof APP_ROUTES)[number]
+
+/**
+ * La entrada por defecto es la landing, no el HUD: quien abre la URL por primera
+ * vez necesita saber que es esto antes de que le pidan el microfono.
+ */
+export const DEFAULT_ROUTE: Route = '/'
+
+export function isAppRoute(route: Route): route is AppRoute {
+  return (APP_ROUTES as readonly string[]).includes(route)
+}
 
 /**
  * La especificación nombra la pantalla de dosimetría como `/dosimetry` en un sitio
@@ -31,7 +46,12 @@ export const DEFAULT_ROUTE: Route = '/hud'
 const ALIASES: Record<string, Route> = {
   '/analytics': '/dosimetry',
   '/dosimetria': '/dosimetry',
-  '/': DEFAULT_ROUTE,
+  '/landing': '/',
+  '/inicio': '/',
+  '/entrar': '/login',
+  '/registro': '/signup',
+  '/signin': '/login',
+  '/register': '/signup',
   '': DEFAULT_ROUTE,
 }
 

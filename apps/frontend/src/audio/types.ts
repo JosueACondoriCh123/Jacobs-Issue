@@ -39,6 +39,7 @@ export interface DspTelemetry {
 
 /** Ventana de audio lista para el clasificador de Dev 4. */
 export interface DspAudioFrame {
+  capturedAt?: string
   type: 'frame'
   /** 15360 muestras = 0.96 s a 16 kHz, mono, [-1, 1]. */
   pcm: Float32Array
@@ -88,6 +89,13 @@ export interface CaptureStatus {
  * Enviar aqui un 0..1 haria que el HUD dibujara siempre nivel cero.
  */
 export interface TelemetryPayload {
+  id?: string
+  kind?: 'level' | 'event'
+  capturedAt?: string
+  emittedAt?: string
+  directionValid?: boolean
+  model?: string
+  persistence?: 'LOCAL' | 'SAVING' | 'SAVED' | 'ERROR'
   azimuth: number
   intensity: number
   label: string

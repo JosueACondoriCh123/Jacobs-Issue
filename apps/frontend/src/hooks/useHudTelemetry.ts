@@ -24,7 +24,7 @@ const initialTelemetry = normalizeTelemetry(
 
 const MAX_SEEN_EVENTS = 200
 
-export function useHudTelemetry() {
+export function useHudTelemetry(userId?: string | null) {
   const [telemetry, setTelemetry] = useState(initialTelemetry)
   const [history, setHistory] = useState<HUDTelemetryEvent[]>([])
   const [connection, setConnection] = useState<ConnectionState>(
@@ -58,6 +58,7 @@ export function useHudTelemetry() {
         if (expiredId) seenIdsRef.current.delete(expiredId)
       }
 
+      if (event.kind !== 'level') setHistory(current => [event,...current.filter(e => e.id !== event.id)].slice(0,60))
       pendingEventRef.current = event
       if (frameRef.current !== null) return
 
@@ -69,7 +70,6 @@ export function useHudTelemetry() {
         if (!latestEvent) return
 
         setTelemetry(latestEvent)
-        setHistory((current) => [latestEvent, ...current].slice(0, 6))
         setRenderLatencyMs(Math.max(0, Math.round(performance.now() - queuedAt)))
       })
     }
@@ -133,6 +133,16 @@ export function useHudTelemetry() {
     if (!history.length) return 0
     return history.reduce((total, event) => total + event.intensity, 0) / history.length
   }, [history])
+  useEffect(() => {
+    if (!supabase || !userId) {setHistory([]);return}
+    let cancelled=false
+    void supabase.from('acoustic_event_logs').select('*').eq('user_id',userId).order('timestamp',{ascending:false}).limit(60).then(({data,error}) => {
+      if (cancelled) return
+      if (error) {setError(`Historial: ${error.message}`);return}
+      setHistory(current => [...current,...(data ?? []).map(row => mapAcousticEvent(row as AcousticEventRow)).filter(e => !current.some(p => p.id===e.id))].slice(0,60))
+    })
+    return () => {cancelled=true}
+  },[userId])
 
   return {
     telemetry,

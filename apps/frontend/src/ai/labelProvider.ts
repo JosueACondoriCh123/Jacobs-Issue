@@ -1,5 +1,6 @@
 import { classify, setClassifierEngine, useNeuralBackend } from './classify';
 import type { SimpleClassification } from './classify';
+import { LiveInferenceLoop } from './liveLoop';
 import type { SoundClassifier } from './types';
 import { UNCLASSIFIED } from './types';
 
@@ -7,6 +8,15 @@ export interface LabelProviderOptions {
   classifier?: SoundClassifier;
   /** Si supera el umbral, la etiqueta se mantiene N telemetrias (suavizado). */
   holdMs?: number;
+  /**
+   * Activa el loop de inferencia viva (tick 100 ms, presupuesto 50 ms).
+   * Conecta engine.onFrame una sola vez; sin esto, push() clasifica directo.
+   */
+  live?: {
+    onFrame: (listener: (pcm: Float32Array, peakDb: number) => void) => () => void;
+    intervalMs?: number;
+    budgetMs?: number;
+  };
 }
 
 const DEFAULT_HOLD_MS = 1500;
@@ -30,14 +40,35 @@ export class LabelProvider {
   private confidence = 0;
   private holdMs: number;
   private lastConfidentAt = 0;
+  private loop: LiveInferenceLoop | null = null;
 
   constructor(options: LabelProviderOptions = {}) {
     this.holdMs = options.holdMs ?? DEFAULT_HOLD_MS;
     if (options.classifier) setClassifierEngine(options.classifier);
+    if (options.live) {
+      this.loop = new LiveInferenceLoop({
+        intervalMs: options.live.intervalMs,
+        budgetMs: options.live.budgetMs,
+        onFrame: options.live.onFrame,
+        onResult: (r) => {
+          if (r.confident) {
+            this.label = r.label;
+            this.confidence = r.confidence;
+            this.lastConfidentAt = Date.now();
+          }
+        },
+      });
+      this.loop.start();
+    }
   }
 
   /** Etiqueta vigente para publisher.publish(t, labels.current). */
   get current(): string {
+    if (this.loop) return this.loop.current !== UNCLASSIFIED ? this.loop.current : this.labelFallback();
+    return this.labelFallback();
+  }
+
+  private labelFallback(): string {
     if (
       this.label !== UNCLASSIFIED &&
       Date.now() - this.lastConfidentAt > this.holdMs
@@ -74,6 +105,13 @@ export class LabelProvider {
     this.label = UNCLASSIFIED;
     this.confidence = 0;
     this.lastConfidentAt = 0;
+    this.loop?.reset();
+  }
+
+  /** Detiene el loop vivo (libera engine.onFrame + intervalo). */
+  dispose(): void {
+    this.loop?.stop();
+    this.loop = null;
   }
 }
 

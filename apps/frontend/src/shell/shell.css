@@ -1,5 +1,5 @@
 /*
- * EchoVision OS — shell de navegación.
+ * Jacobs Issue OS — shell de navegación.
  *
  * Todo va prefijado con `evx-` para no colisionar con las clases de `styles.css`
  * (Dev 1). Paleta Cyber-OLED del documento de arquitectura.
@@ -541,3 +541,39 @@ input:focus, select:focus { outline: 1px solid var(--evx-cyan); border-color: va
   background: #05070a; border: 1px solid var(--evx-line); border-radius: 6px;
   padding: 10px; font-size: 11px; color: var(--evx-amber); overflow-x: auto; margin: 12px 0;
 }
+
+/* Indicador de sincronización */
+.evx-sync {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 9px; letter-spacing: 0.08em; padding: 2px 8px;
+  border-radius: 999px; border: 1px solid currentColor;
+}
+.evx-sync i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.evx-sync-synced { color: var(--evx-green); }
+.evx-sync-local { color: var(--evx-muted); }
+.evx-sync-error { color: var(--evx-red); }
+
+/* Aviso de sesión requerida */
+.evx-login-box {
+  border-left: 2px solid var(--evx-cyan); background: rgba(0, 240, 255, 0.06);
+  padding: 10px 12px; margin: 0 0 14px; font-size: 12px; color: var(--evx-text);
+}
+.evx-login-box strong { color: var(--evx-cyan); }
+
+/* Resultado de despacho de emergencia */
+.evx-outcome { font-size: 9px; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; letter-spacing: 0.06em; }
+.evx-outcome-SENT { color: var(--evx-green); }
+.evx-outcome-LOGGED_ONLY { color: var(--evx-amber); }
+.evx-outcome-NOT_DEPLOYED, .evx-outcome-FAILED { color: var(--evx-red); }
+.evx-outcome-NEEDS_LOGIN, .evx-outcome-NO_CONTACTS { color: var(--evx-muted); }
+
+.evx-outcome-legend { margin-top: 14px; border-top: 1px solid var(--evx-line); padding-top: 12px; }
+.evx-legend-list { list-style: none; margin: 8px 0; padding: 0; }
+.evx-legend-list li {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-size: 11px; color: var(--evx-muted); padding: 4px 0; line-height: 1.6;
+}
+.evx-legend-list code { color: var(--evx-cyan); }
+
+.evx-exit { margin-bottom: 10px; opacity: 0.75; }
+.evx-exit:hover { opacity: 1; }

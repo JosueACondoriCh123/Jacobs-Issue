@@ -1,5 +1,5 @@
 // ====================================================================
-// EchoVision - Benchmark de Latencia End-to-End: Zero Latency Loop (< 50 ms)
+// Jacobs Issue - Benchmark de Latencia End-to-End: Zero Latency Loop (< 50 ms)
 // Fase A: Integración en Vivo y Calibración de Ruido (Dev 3)
 // ====================================================================
 
@@ -20,7 +20,7 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://bbaznvpitxauwggzr
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_gAZs06yX3eD_TGZRD12U-A_JH10eg0e';
 
 console.log('================================================================');
-console.log('  ECHOVISION // BENCHMARK DE LATENCIA ZERO LATENCY LOOP (< 50 ms)');
+console.log('  JACOBS ISSUE // BENCHMARK DE LATENCIA ZERO LATENCY LOOP (< 50 ms)');
 console.log(`  Target: ${SUPABASE_URL}`);
 console.log('================================================================\n');
 

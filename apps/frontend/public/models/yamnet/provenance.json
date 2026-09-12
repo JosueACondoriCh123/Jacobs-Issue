@@ -1,0 +1,7 @@
+{
+  "weights_source": "https://storage.googleapis.com/audioset/yamnet.h5",
+  "weights_sha256": "13c3308955bbfaef262f175ac9c40e47b134573a93984f009220dd7cc12a1744",
+  "architecture": "https://github.com/tensorflow/models/tree/master/research/audioset/yamnet",
+  "reference": "TensorFlow 2.20 official STFT/mel and pretrained Keras network",
+  "license": "Apache-2.0 (architecture); retain original notices"
+}

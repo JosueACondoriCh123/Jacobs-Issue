@@ -1,7 +1,7 @@
 import { ErrorBoundary } from './ErrorBoundary'
 import { Sidebar, NAV_ITEMS } from './Sidebar'
 import { useRoute } from './router'
-import { EchoStoreProvider, useEchoStore } from './store'
+import { useEchoStore } from './store'
 import { TacticalHud } from '../screens/TacticalHud'
 import { ForensicsLab } from '../screens/ForensicsLab'
 import { SensorMesh } from '../screens/SensorMesh'
@@ -9,6 +9,8 @@ import { SoundStudio } from '../screens/SoundStudio'
 import { SafetyTree } from '../screens/SafetyTree'
 import { Dosimetry } from '../screens/Dosimetry'
 import './shell.css'
+import './responsive.css'
+
 
 function Screens() {
   const route = useRoute()
@@ -39,17 +41,19 @@ function Screens() {
           <CaptureControl />
         </header>
 
-        <div className="evx-screen" key={route}>
+        <div className="evx-screen" hidden={route !== '/safety'}><ErrorBoundary screen="/safety"><SafetyTree /></ErrorBoundary></div>
+        <div className="evx-screen" key={route} hidden={route === '/safety'}>
           <ErrorBoundary screen={route}>
             {route === '/hud' ? <TacticalHud /> : null}
             {route === '/forensics' ? <ForensicsLab /> : null}
             {route === '/mesh' ? <SensorMesh /> : null}
             {route === '/studio' ? <SoundStudio /> : null}
-            {route === '/safety' ? <SafetyTree /> : null}
+
             {route === '/dosimetry' ? <Dosimetry /> : null}
           </ErrorBoundary>
         </div>
       </div>
+
     </div>
   )
 }
@@ -62,14 +66,14 @@ function Screens() {
  * continuar. Cortarla al cambiar de vista dejaría huecos en el historial.
  */
 function CaptureControl() {
-  const { isRunning, start, stop, status, error, telemetry, transportName } = useEchoStore()
+  const { isRunning, start, stop, status, error, telemetry, transportName,miniHud,signal,modelState,splOffsetDb,setSplOffsetDb } = useEchoStore()
 
   return (
     <div className="evx-capture">
       {telemetry ? (
         <div className="evx-live-readout">
           <span className="evx-live-db">{telemetry.db.toFixed(1)}</span>
-          <small>dB(A)</small>
+          <small>dB estimados</small>
           <span className={`evx-live-risk risk-${telemetry.risk.toLowerCase()}`}>
             {telemetry.risk}
           </span>
@@ -82,6 +86,9 @@ function CaptureControl() {
         </span>
       ) : null}
 
+      <button type="button" className="evx-ghost-btn" onClick={() => void miniHud.open()}>MINI HUD</button>
+      <span className="evx-transport">YAMNet: {modelState} · {signal}</span>
+      <details className="evx-calibration"><summary>Calibración de nivel</summary><label>Offset dB <input type="number" min={-140} max={140} value={splOffsetDb} onChange={e => setSplOffsetDb(Number(e.target.value))}/></label><p>Ajusta contra un sonómetro de referencia. El nivel sigue siendo estimado; el suelo de ruido no calibra el micrófono.</p></details>
       <span className="evx-transport" title="Transporte de telemetría">
         {transportName}
       </span>
@@ -89,6 +96,7 @@ function CaptureControl() {
       <button
         type="button"
         className={`evx-capture-btn ${isRunning ? 'is-live' : ''}`}
+        disabled={signal === 'STARTING'}
         onClick={() => (isRunning ? stop() : void start())}
       >
         <span className="evx-capture-dot" aria-hidden="true" />
@@ -105,9 +113,5 @@ function CaptureControl() {
 }
 
 export default function AppShell() {
-  return (
-    <EchoStoreProvider>
-      <Screens />
-    </EchoStoreProvider>
-  )
+  return <Screens />
 }

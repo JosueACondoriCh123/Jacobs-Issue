@@ -1,5 +1,5 @@
 /**
- * Tipos de Base de Datos para EchoVision (Supabase PostgreSQL)
+ * Tipos de Base de Datos para Jacobs Issue (Supabase PostgreSQL)
  * Esquema: public
  */
 

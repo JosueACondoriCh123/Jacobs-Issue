@@ -45,24 +45,22 @@ let cachedMelMatrix: Float64Array[] | null = null;
 
 export function melFilterbank(): Float64Array[] {
   if (cachedMelMatrix) return cachedMelMatrix;
-  const fftBins = STFT_WINDOW / 2 + 1;
+  const fftBins = 512 / 2 + 1;
   const melLow = hzToMel(MEL_MIN_HZ);
   const melHigh = hzToMel(MEL_MAX_HZ);
   const melPoints: number[] = [];
   for (let i = 0; i < N_MEL + 2; i++) {
     melPoints.push(melLow + ((melHigh - melLow) * i) / (N_MEL + 1));
   }
-  const hzPoints = melPoints.map(melToHz);
-  const binPoints = hzPoints.map((hz) => (hz * STFT_WINDOW) / YAMNET_SR);
   const bank: Float64Array[] = [];
   for (let m = 0; m < N_MEL; m++) {
     const filt = new Float64Array(fftBins);
-    const f0 = binPoints[m];
-    const f1 = binPoints[m + 1];
-    const f2 = binPoints[m + 2];
+    const f0 = melPoints[m];
+    const f1 = melPoints[m + 1];
+    const f2 = melPoints[m + 2];
     for (let k = 0; k < fftBins; k++) {
-      if (k >= f0 && k <= f1 && f1 > f0) filt[k] = (k - f0) / (f1 - f0);
-      else if (k >= f1 && k <= f2 && f2 > f1) filt[k] = (f2 - k) / (f2 - f1);
+      const mel = hzToMel(k * YAMNET_SR / 512);
+      filt[k] = k === 0 ? 0 : Math.max(0, Math.min((mel - f0) / (f1 - f0), (f2 - mel) / (f2 - f1)));
     }
     bank.push(filt);
   }
@@ -70,28 +68,61 @@ export function melFilterbank(): Float64Array[] {
   return bank;
 }
 
-/** Magnitud de la DFT de 512 puntos para un frame real (fuerza bruta). */
-function magnitudeSpectrum(frame: Float64Array): Float64Array {
-  const bins = STFT_WINDOW / 2 + 1;
-  const out = new Float64Array(bins);
-  for (let k = 0; k < bins; k++) {
-    let re = 0;
-    let im = 0;
-    const ang = (-2 * Math.PI * k) / STFT_WINDOW;
-    for (let n = 0; n < STFT_WINDOW; n++) {
-      const x = frame[n];
-      if (x === 0) continue;
-      re += x * Math.cos(ang * n);
-      im += x * Math.sin(ang * n);
+/** FFT radix-2 in-place sobre (re, im). n debe ser potencia de 2. */
+function fftInPlace(re: Float64Array, im: Float64Array): void {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      let t = re[i]; re[i] = re[j]; re[j] = t;
+      t = im[i]; im[i] = im[j]; im[j] = t;
     }
-    out[k] = Math.sqrt(re * re + im * im);
   }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (-2 * Math.PI) / len;
+    const wRe = Math.cos(ang);
+    const wIm = Math.sin(ang);
+    const half = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let curRe = 1;
+      let curIm = 0;
+      for (let k = 0; k < half; k++) {
+        const aRe = re[i + k];
+        const aIm = im[i + k];
+        const bRe = re[i + k + half] * curRe - im[i + k + half] * curIm;
+        const bIm = re[i + k + half] * curIm + im[i + k + half] * curRe;
+        re[i + k] = aRe + bRe;
+        im[i + k] = aIm + bIm;
+        re[i + k + half] = aRe - bRe;
+        im[i + k + half] = aIm - bIm;
+        const nxRe = curRe * wRe - curIm * wIm;
+        curIm = curRe * wIm + curIm * wRe;
+        curRe = nxRe;
+      }
+    }
+  }
+}
+
+/** Magnitud del espectro via FFT-512 (bins 0..256). Cuesta O(n log n). */
+function magnitudeSpectrum(frame: Float64Array): Float64Array {
+  const size = 512;
+  const re = new Float64Array(size);
+  const im = new Float64Array(size);
+  re.set(frame.subarray(0, Math.min(frame.length, size)));
+  fftInPlace(re, im);
+  const bins = 512 / 2 + 1;
+  const out = new Float64Array(bins);
+  for (let k = 0; k < bins; k++) out[k] = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
   return out;
 }
 
 /**
  * Log-mel de toda la forma de onda: filas = frames STFT de 10 ms.
  * Equivale a features.py::waveform_to_log_mel_spectrogram().
+ * La magnitud via FFT-512: el parche 96x64 completo cuesta ~10 ms
+ * en hilo principal, dentro del presupuesto del circuito en vivo.
  */
 export function waveformToLogMel(pcm: Float32Array): Float64Array[] {
   const window = periodicHann(STFT_WINDOW);
@@ -120,14 +151,19 @@ export function waveformToLogMel(pcm: Float32Array): Float64Array[] {
  * corta se rellena con ceros.
  */
 export function waveformToExamples(pcm: Float32Array): Float32Array[] {
-  const logMel = waveformToLogMel(pcm);
+  // Official pad_waveform: pad PCM, not log-mel. Silence is log(0.001), not 0.
+  const minimum = 15600; // 0.96 + 0.025 - 0.010 seconds at 16 kHz.
+  const total = minimum + Math.ceil(Math.max(0, pcm.length - minimum) / 7680) * 7680;
+  const padded = new Float32Array(total);
+  padded.set(pcm);
+  const logMel = waveformToLogMel(padded);
   const patches: Float32Array[] = [];
   let offset = 0;
   while (offset + N_FRAME <= logMel.length) {
     const patch = new Float32Array(N_FRAME * N_MEL);
     for (let f = 0; f < N_FRAME; f++) patch.set(logMel[offset + f], f * N_MEL);
     patches.push(patch);
-    offset += N_FRAME;
+    offset += N_FRAME / 2;
   }
   if (offset === 0) {
     const patch = new Float32Array(N_FRAME * N_MEL);

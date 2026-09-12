@@ -1,5 +1,5 @@
 -- ====================================================================
--- EchoVision (PhonoSpatial HUD) - Migración 002: Tablas Auxiliares
+-- Jacobs Issue (PhonoSpatial HUD) - Migración 002: Tablas Auxiliares
 -- Para Catálogo de Endpoints de Accesibilidad, Sensores y Calibración
 -- ====================================================================
 

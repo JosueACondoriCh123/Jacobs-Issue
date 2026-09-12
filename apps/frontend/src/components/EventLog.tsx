@@ -25,7 +25,7 @@ export function EventLog({ history }: EventLogProps) {
             <span className={`risk-dot risk-${event.risk.toLowerCase()}`} />
             <span className="event-copy">
               <strong>{event.label}</strong>
-              <small>{event.risk} / {Math.round(event.azimuth)}°</small>
+              <small>{event.risk} / {event.directionValid ? `${Math.round(event.azimuth)}°` : 'Sin dirección'} / {event.persistence === 'SAVED' ? 'Guardado' : 'Local'}</small>
             </span>
             <time dateTime={event.timestamp}>{formatTime(event.timestamp)}</time>
           </li>

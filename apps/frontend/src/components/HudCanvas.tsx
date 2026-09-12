@@ -104,6 +104,7 @@ export function HudCanvas({ telemetry }: HudCanvasProps) {
       context.fill()
 
       const angle = (currentAngle.current * Math.PI) / 180
+      context.globalAlpha = data.directionValid === true ? 1 : 0
       const strength = Math.min(1, Math.max(0.2, currentIntensity.current / 105))
       const vectorLength = radius * (0.42 + strength * 0.48)
       const vx = Math.sin(angle) * vectorLength
@@ -134,6 +135,7 @@ export function HudCanvas({ telemetry }: HudCanvasProps) {
       context.globalAlpha = 1
 
       context.fillStyle = 'rgba(205, 251, 255, 0.9)'
+      context.globalAlpha = 1
       context.font = '600 11px "IBM Plex Mono", monospace'
       context.textAlign = 'center'
       context.fillText('N', 0, -radius - 30)

@@ -1,5 +1,5 @@
 // ====================================================================
-// EchoVision (PhonoSpatial HUD) - Edge Function: api-v1
+// Jacobs Issue (PhonoSpatial HUD) - Edge Function: api-v1
 // Router modular REST para endpoints de calibración, dispositivos,
 // eventos acústicos/onsets, mesh, dosimetría y salud
 // ====================================================================
@@ -59,7 +59,7 @@ serve(async (req: Request) => {
     if (path === '/health' || path === '/ready' || path === '/') {
       return jsonResponse({
         status: 'healthy',
-        service: 'EchoVision Supabase API v1',
+        service: 'Jacobs Issue Supabase API v1',
         database: 'connected',
         timestamp: new Date().toISOString(),
       });
@@ -151,7 +151,7 @@ serve(async (req: Request) => {
         deviceId = `hud-${randomPart}`;
       }
 
-      const deviceName = body.device_name || body.deviceName || (deviceId === 'hud-primary' ? 'EchoVision HUD Primary Unit' : `EchoVision Device (${deviceId})`);
+      const deviceName = body.device_name || body.deviceName || (deviceId === 'hud-primary' ? 'Jacobs Issue HUD Primary Unit' : `Jacobs Issue Device (${deviceId})`);
       const deviceRoom = body.device_room || body.deviceRoom || (deviceId === 'hud-primary' ? 'Master HUD / Central' : 'Sala Principal');
       const batteryLevel = typeof body.battery_level === 'number' ? body.battery_level : (typeof body.batteryLevel === 'number' ? body.batteryLevel : 100.0);
       const status = body.status || 'online';

@@ -2,6 +2,7 @@ import { createClient, type RealtimeChannel, type SupabaseClient } from '@supaba
 import type { TelemetryPayload } from '../types'
 import { TELEMETRY_CHANNEL, TELEMETRY_EVENT } from '../types'
 import type { TelemetryTransport } from './types'
+import { supabase, isRealtimePrivate } from '../../lib/supabase'
 
 /**
  * Publicación en el canal broadcast de Supabase Realtime.
@@ -27,8 +28,12 @@ export class SupabaseTransport implements TelemetryTransport {
   readonly name = 'supabase'
   private client: SupabaseClient | null = null
   private channel: RealtimeChannel | null = null
+  private unsubscribeAuth:(()=>void) | null=null
+  private closing=false
+  constructor(private onError:(message:string)=>void=()=>{}) {}
 
   async connect(): Promise<void> {
+    this.closing=false
     const url = import.meta.env.VITE_SUPABASE_URL?.trim()
     const key = (
       import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -46,7 +51,14 @@ export class SupabaseTransport implements TelemetryTransport {
       realtime: { params: { eventsPerSecond: 20 } },
     })
 
-    const channel = this.client.channel(TELEMETRY_CHANNEL)
+    const session=await supabase?.auth.getSession()
+    if (session?.data.session) await this.client.realtime.setAuth(session.data.session.access_token)
+    const authSubscription=supabase?.auth.onAuthStateChange((_event,nextSession)=> {
+      const client=this.client
+      if(client) queueMicrotask(()=> {void client.realtime.setAuth(nextSession?.access_token ?? key).catch(error=>this.onError(String(error)))})
+    })
+    this.unsubscribeAuth=()=>authSubscription?.data.subscription.unsubscribe()
+    const channel = this.client.channel(TELEMETRY_CHANNEL,{config:{private:isRealtimePrivate}})
     this.channel = channel
 
     await new Promise<void>((resolve, reject) => {
@@ -61,21 +73,25 @@ export class SupabaseTransport implements TelemetryTransport {
         }
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           clearTimeout(timeout)
-          reject(new Error('No se pudo suscribir al canal ' + TELEMETRY_CHANNEL + ': ' + status))
+          const message='No se pudo suscribir al canal '+TELEMETRY_CHANNEL+': '+status
+          this.onError(message);reject(new Error(message))
         }
+        if(status==='CLOSED' && !this.closing) this.onError('Realtime: canal de publicación cerrado')
       })
     })
   }
 
   publish(payload: TelemetryPayload): void {
-    void this.channel?.send({
+    if(!this.channel) {this.onError('Realtime: no hay canal de publicación');return}
+    void this.channel.send({
       type: 'broadcast',
       event: TELEMETRY_EVENT,
       payload,
-    })
+    }).then(status=>{if(status!=='ok') this.onError(`Realtime: publicación no confirmada (${status})`)}).catch(error=>this.onError(String(error)))
   }
 
   async disconnect(): Promise<void> {
+    this.closing=true;this.unsubscribeAuth?.();this.unsubscribeAuth=null
     if (this.channel && this.client) {
       await this.client.removeChannel(this.channel)
     }

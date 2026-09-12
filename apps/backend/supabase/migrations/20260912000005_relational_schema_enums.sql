@@ -1,5 +1,5 @@
 -- ====================================================================
--- EchoVision (PhonoSpatial HUD) - Migración 005: Esquema Relacional con Enums
+-- Jacobs Issue (PhonoSpatial HUD) - Migración 005: Esquema Relacional con Enums
 -- Enums, profiles extendido, spatial_zones, devices, custom_sound_signatures,
 -- acoustic_incidents, incident_telemetry_frames, emergency_contacts,
 -- notification_dispatch_logs, dosimetry_daily_aggregates y tr_critical_escalation

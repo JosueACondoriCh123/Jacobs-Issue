@@ -1,5 +1,5 @@
 -- ====================================================================
--- EchoVision (PhonoSpatial HUD) - Migración 003: Row Level Security (RLS) & Realtime
+-- Jacobs Issue (PhonoSpatial HUD) - Migración 003: Row Level Security (RLS) & Realtime
 -- Protección de datos de usuario e inclusión en canal Realtime a 60 FPS
 -- ====================================================================
 

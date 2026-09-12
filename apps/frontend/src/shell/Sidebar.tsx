@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { navigate, type Route } from './router'
+import { navigate, type AppRoute, type Route } from './router'
 
 export interface NavItem {
-  route: Route
+  route: AppRoute
   glyph: string
   title: string
   subtitle: string
@@ -18,7 +18,7 @@ export const NAV_ITEMS: NavItem[] = [
   { route: '/dosimetry', glyph: '📊', title: 'DOSIMETRY', subtitle: 'Salud auditiva OMS' },
 ]
 
-const COLLAPSE_KEY = 'echovision.sidebarCollapsed'
+const COLLAPSE_KEY = 'jacobs-issue.sidebarCollapsed'
 
 export interface SidebarProps {
   active: Route
@@ -68,7 +68,7 @@ export function Sidebar({ active, risk, connection, unreviewed }: SidebarProps) 
   return (
     <nav
       className={`evx-sidebar ${collapsed ? 'is-collapsed' : ''}`}
-      aria-label="Navegación principal de EchoVision OS"
+      aria-label="Navegación principal de Jacobs Issue OS"
     >
       <div className="evx-sidebar-head">
         <span className="evx-logo" aria-hidden="true">
@@ -77,7 +77,7 @@ export function Sidebar({ active, risk, connection, unreviewed }: SidebarProps) 
           <i />
         </span>
         <span className="evx-wordmark">
-          <strong>ECHOVISION</strong>
+          <strong>JACOBS ISSUE</strong>
           <small>OS</small>
         </span>
         <button
@@ -130,6 +130,19 @@ export function Sidebar({ active, risk, connection, unreviewed }: SidebarProps) 
       </ul>
 
       <div className="evx-sidebar-foot">
+        <button
+          type="button"
+          className="evx-nav-item evx-exit"
+          onClick={() => navigate('/')}
+          title="Volver a la pagina publica"
+        >
+          <span className="evx-glyph" aria-hidden="true">←</span>
+          <span className="evx-nav-text">
+            <strong>SALIR AL INICIO</strong>
+            <small>Pagina publica</small>
+          </span>
+        </button>
+
         <div className="evx-link-state">
           <span className={`evx-link-dot state-${connection.toLowerCase()}`} aria-hidden="true" />
           <span className="evx-nav-text">

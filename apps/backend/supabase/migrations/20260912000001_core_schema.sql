@@ -1,5 +1,5 @@
 -- ====================================================================
--- EchoVision (PhonoSpatial HUD) - Migración 001: Core Schema
+-- Jacobs Issue (PhonoSpatial HUD) - Migración 001: Core Schema
 -- Tablas persistentes: profiles, acoustic_event_logs, notification_dispatch_logs
 -- ====================================================================
 

@@ -1,8 +1,10 @@
 import type { CSSProperties } from 'react'
 import { getAmbientState } from '../lib/miniHudState'
 import type { HUDTelemetryEvent } from '../types/hud'
+import type { SignalState } from '../lib/signalState'
 
 interface MiniHudProps {
+  signal?: SignalState
   telemetry: HUDTelemetryEvent
   isFloating: boolean
   onClose: () => void
@@ -14,9 +16,9 @@ const barStyle = (height: number, delay: number) =>
     '--bar-delay': `${delay}ms`,
   }) as CSSProperties
 
-export function MiniHud({ telemetry, isFloating, onClose }: MiniHudProps) {
-  const ambient = getAmbientState(telemetry)
-  const energy = Math.min(1, Math.max(0.14, telemetry.intensity / 105))
+export function MiniHud({ telemetry, isFloating, onClose, signal = telemetry.source === 'idle' ? 'WAITING' : 'LIVE' }: MiniHudProps) {
+  const ambient = getAmbientState(telemetry,signal)
+  const energy = signal === 'LIVE' ? Math.min(1, Math.max(0, telemetry.intensity / 105)) : 0
   const bars = Array.from({ length: 17 }, (_, index) => {
     const distance = Math.abs(index - 8) / 8
     const shape = 1 - distance * 0.68
@@ -45,10 +47,11 @@ export function MiniHud({ telemetry, isFloating, onClose }: MiniHudProps) {
           ))}
         </div>
         <div className="mini-reading">
-          <strong>{Math.round(telemetry.intensity)}</strong>
-          <span>dB</span>
+          <strong>{signal === 'LIVE' ? Math.round(telemetry.intensity) : '--'}</strong>
+          <span>dB estimados</span>
         </div>
         <span
+          hidden={telemetry.directionValid !== true || signal !== 'LIVE'}
           className="mini-direction"
           style={{ transform: `rotate(${telemetry.azimuth}deg)` }}
         >
@@ -69,7 +72,7 @@ export function MiniHud({ telemetry, isFloating, onClose }: MiniHudProps) {
         </span>
         <span>
           <small>DIRECCIÓN</small>
-          <strong>{Math.round(telemetry.azimuth)}°</strong>
+          <strong>{telemetry.directionValid === true && signal === 'LIVE' ? `${Math.round(telemetry.azimuth)}°` : 'No disponible'}</strong>
         </span>
         <span className={`mini-live ${isFloating ? 'is-floating' : ''}`}>
           <i /> {isFloating ? 'FLOTANTE' : 'EN PÁGINA'}
@@ -78,8 +81,8 @@ export function MiniHud({ telemetry, isFloating, onClose }: MiniHudProps) {
 
       <p className="sr-only" aria-live="assertive">
         {ambient.hasAlert
-          ? `${ambient.title}. ${telemetry.label}, ${Math.round(telemetry.intensity)} decibelios, dirección ${Math.round(telemetry.azimuth)} grados.`
-          : `${ambient.title}. ${Math.round(telemetry.intensity)} decibelios.`}
+          ? `${ambient.title}. ${telemetry.label}, ${Math.round(telemetry.intensity)} decibelios estimados.`
+          : `${ambient.title}. ${signal === 'LIVE' ? `${Math.round(telemetry.intensity)} decibelios estimados.` : 'Sin datos actuales.'}`}
       </p>
     </section>
   )

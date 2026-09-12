@@ -50,21 +50,7 @@ export interface CalibrationResponse {
 export async function sendCalibrationBaseline(
   payload: CalibrationPayload,
 ): Promise<CalibrationResponse | null> {
-  if (!isSupabaseConfigured) {
-    console.warn('[EchoVision API] Supabase no configurado, simulando calibración local.')
-    const dynamicThreshold = Math.round(
-      (payload.ambient_average_db + 0.6 * (payload.peak_transient_db - payload.ambient_average_db)) * 10,
-    ) / 10
-    return {
-      success: true,
-      baseline_id: 'mock-baseline-local',
-      dynamic_threshold_db: dynamicThreshold,
-      ambient_average_db: payload.ambient_average_db,
-      peak_transient_db: payload.peak_transient_db,
-      environment_type: payload.environment_type || 'indoor_default',
-      status: 'active',
-    }
-  }
+  if (!isSupabaseConfigured) throw new Error('No guardado: Supabase no configurado.')
 
   const url = `${SUPABASE_URL}/functions/v1/api-v1/calibration/baseline`
   const headers = await getAuthHeaders()
@@ -113,29 +99,13 @@ export async function provisionDevice(
   payload: DeviceProvisionPayload = {},
 ): Promise<DeviceProvisionResponse> {
   // Si ya se guardó un device_id en localStorage, reutilizarlo para mantener identidad persistente
-  const storedId = localStorage.getItem('echovision.device_id')
+  const storedId = localStorage.getItem('jacobs-issue.device_id')
   const body = {
     ...payload,
     device_id: payload.device_id || (storedId && storedId !== 'hud-primary' ? storedId : undefined),
   }
 
-  if (!isSupabaseConfigured) {
-    const fallbackId = body.device_id || `hud-${Math.random().toString(36).substring(2, 10)}`
-    localStorage.setItem('echovision.device_id', fallbackId)
-    return {
-      success: true,
-      device_id: fallbackId,
-      device: {
-        id: fallbackId,
-        device_name: body.device_name || `EchoVision HUD (${fallbackId})`,
-        device_room: body.device_room || 'Sala Principal',
-        battery_level: body.battery_level ?? 100,
-        status: 'online',
-        last_heartbeat: new Date().toISOString(),
-        user_id: null,
-      },
-    }
-  }
+  if (!isSupabaseConfigured) throw new Error('Dispositivo no provisionado: Supabase no configurado.')
 
   const url = `${SUPABASE_URL}/functions/v1/api-v1/devices`
   const headers = await getAuthHeaders()
@@ -153,7 +123,7 @@ export async function provisionDevice(
 
   const data: DeviceProvisionResponse = await res.json()
   if (data?.device_id) {
-    localStorage.setItem('echovision.device_id', data.device_id)
+    localStorage.setItem('jacobs-issue.device_id', data.device_id)
   }
   return data
 }
@@ -175,17 +145,14 @@ export interface PersistEventPayload {
  * respetando RLS y asociando la sesión activa si existe.
  */
 export async function persistAcousticEvent(payload: PersistEventPayload): Promise<unknown> {
-  if (!supabase) {
-    console.log('[EchoVision Mock Event Persisted]', payload)
-    return { success: true, mock: true }
-  }
+  if (!supabase) throw new Error('No guardado: Supabase no configurado.')
 
   const { data: sessionData } = await supabase.auth.getSession()
   const userId = sessionData.session?.user?.id ?? null
 
   const metadata = {
-    device_id: payload.device_id || localStorage.getItem('echovision.device_id') || 'hud-primary',
-    session_id: payload.session_id || sessionData.session?.access_token ? 'authenticated-session' : 'guest-session',
+    device_id: payload.device_id || localStorage.getItem('jacobs-issue.device_id') || 'hud-primary',
+    session_id: payload.session_id || (sessionData.session ? 'authenticated-session' : 'guest-session'),
     is_onset: payload.is_onset ?? true,
     ...(payload.metadata || {}),
   }
@@ -197,7 +164,7 @@ export async function persistAcousticEvent(payload: PersistEventPayload): Promis
       sound_label: payload.sound_label,
       decibels: payload.decibels,
       risk_level: payload.risk_level,
-      confidence: payload.confidence ?? 0.95,
+      confidence: payload.confidence ?? 0,
       azimuth_angle: payload.azimuth_angle ?? 0.0,
       metadata,
     })
