@@ -1,0 +1,6 @@
+{
+  "ambient_average_db": 44.5,
+  "peak_transient_db": 68.0,
+  "environment_type": "indoor_living_room",
+  "expected_dynamic_threshold_db": 58.6
+}

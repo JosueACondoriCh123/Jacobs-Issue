@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@types/three@0.186.0'

@@ -1,0 +1,15 @@
+{
+  "id": "e7b1a208-41fa-4f90-8801-b51c8632e101",
+  "user_id": "00000000-0000-0000-0000-000000000001",
+  "timestamp": "2026-09-12T13:30:00.000Z",
+  "sound_label": "fire_alarm_siren",
+  "confidence": 0.94,
+  "decibels": 96.5,
+  "risk_level": "CRITICAL",
+  "azimuth_angle": 270.0,
+  "metadata": {
+    "model_version": "YAMNet-v1.2",
+    "dominant_frequency_hz": 1820,
+    "peak_transient_spike": true
+  }
+}

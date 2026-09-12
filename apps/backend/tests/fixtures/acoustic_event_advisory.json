@@ -1,0 +1,15 @@
+{
+  "id": "e7b1a208-41fa-4f90-8801-b51c8632e102",
+  "user_id": "00000000-0000-0000-0000-000000000001",
+  "timestamp": "2026-09-12T13:30:05.000Z",
+  "sound_label": "vehicle_horn",
+  "confidence": 0.88,
+  "decibels": 78.2,
+  "risk_level": "ADVISORY",
+  "azimuth_angle": 85.0,
+  "metadata": {
+    "model_version": "YAMNet-v1.2",
+    "dominant_frequency_hz": 850,
+    "peak_transient_spike": false
+  }
+}

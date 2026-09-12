@@ -1,0 +1,5 @@
+{
+  "time_window_seconds": 90,
+  "include_recommendations": true,
+  "user_id": "00000000-0000-0000-0000-000000000001"
+}

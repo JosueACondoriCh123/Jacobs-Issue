@@ -1,0 +1,16 @@
+{
+  "name": "@echovision/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/run-fixtures-test.mjs",
+    "test:fixtures": "node tests/run-fixtures-test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

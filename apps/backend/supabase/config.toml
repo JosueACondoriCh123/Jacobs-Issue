@@ -1,0 +1,43 @@
+# Supabase Configuration for EchoVision
+project_id = "echovision-backend"
+
+[api]
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["https://localhost:5173", "http://127.0.0.1:5173"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+redirect_uri = "http://localhost:54321/auth/v1/callback"
+
+[realtime]
+enabled = true
+port = 54324
+ip = "127.0.0.1"
+max_header_length = 4096
+
+[functions.notify-emergency]
+verify_jwt = false
+
+[functions.scene-narrative]
+verify_jwt = false
+
+[functions.api-v1]
+verify_jwt = false

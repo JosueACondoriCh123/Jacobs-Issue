@@ -1,0 +1,8 @@
+{
+  "source_device_id": "sensor-esp32-bedroom-02",
+  "device_room": "Dormitorio Principal",
+  "sound_label": "window_glass_break",
+  "decibels": 89.2,
+  "risk_level": "CRITICAL",
+  "azimuth_angle": 135.0
+}

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoVision · Banco de pruebas de audio (Dev 2)</title>
+    <style>
+      :root {
+        --bg: #050608;
+        --panel: #0b0e13;
+        --line: #1b2430;
+        --cyan: #00f0ff;
+        --green: #00ff88;
+        --red: #ff1e56;
+        --amber: #ffb020;
+        --text: #d7e3ee;
+        --muted: #6b7c8f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      h1 { font-size: 18px; margin: 0 0 4px; color: var(--cyan); letter-spacing: 0.08em; }
+      .sub { color: var(--muted); margin: 0 0 20px; font-size: 12px; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+      .panel h2 {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em;
+        color: var(--muted); margin: 0 0 12px; font-weight: 600;
+      }
+      button {
+        background: transparent; border: 1px solid var(--cyan); color: var(--cyan);
+        padding: 8px 14px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13px;
+      }
+      button:hover { background: rgba(0, 240, 255, 0.1); }
+      select, input {
+        background: #05070a; border: 1px solid var(--line); color: var(--text);
+        padding: 6px 8px; border-radius: 5px; font: inherit; font-size: 13px;
+      }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+      dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; }
+      dt { color: var(--muted); }
+      dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+      .big { font-size: 30px; color: var(--green); font-variant-numeric: tabular-nums; }
+      .ok { color: var(--green); }
+      .warn { color: var(--amber); }
+      .meter {
+        position: relative; height: 22px; background: #05070a;
+        border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 10px 0 4px;
+      }
+      .meter-fill {
+        height: 100%; width: 0%;
+        background: linear-gradient(90deg, var(--green), var(--cyan) 55%, var(--red));
+        transition: width 60ms linear;
+      }
+      .mark { position: absolute; top: 0; bottom: 0; width: 2px; }
+      .mark.floor { background: var(--muted); }
+      .mark.threshold { background: var(--amber); }
+      .scale { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+      .compass {
+        position: relative; width: 190px; height: 190px; margin: 0 auto;
+        border: 1px solid var(--line); border-radius: 50%;
+      }
+      .compass::after {
+        content: ''; position: absolute; inset: 48%; background: var(--cyan); border-radius: 50%;
+      }
+      .needle {
+        position: absolute; left: 50%; top: 10px; width: 2px; height: 85px;
+        background: linear-gradient(180deg, var(--red), transparent);
+        transform-origin: 50% 100%; margin-left: -1px; transition: transform 80ms linear;
+      }
+      .compass-label {
+        position: absolute; color: var(--muted); font-size: 10px; letter-spacing: 0.1em;
+      }
+      .cl-front { top: 6px; left: 50%; transform: translateX(-50%); }
+      .cl-back { bottom: 6px; left: 50%; transform: translateX(-50%); }
+      .cl-left { left: 8px; top: 50%; transform: translateY(-50%); }
+      .cl-right { right: 8px; top: 50%; transform: translateY(-50%); }
+      .pill {
+        display: inline-block; padding: 1px 8px; border-radius: 999px;
+        font-size: 11px; letter-spacing: 0.08em;
+      }
+      .risk-NORMAL { color: var(--green); border: 1px solid var(--green); }
+      .risk-ADVISORY { color: var(--amber); border: 1px solid var(--amber); }
+      .risk-CRITICAL { color: var(--red); border: 1px solid var(--red); }
+      ul { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; font-size: 12px; }
+      li { padding: 3px 0; border-bottom: 1px solid rgba(27, 36, 48, 0.5); color: var(--muted); }
+      li.onset { color: var(--text); }
+      li.onset.risk-CRITICAL { color: var(--red); }
+      li.onset.risk-ADVISORY { color: var(--amber); }
+      #warnings p {
+        margin: 6px 0 0; color: var(--amber); font-size: 12px;
+        border-left: 2px solid var(--amber); padding-left: 8px;
+      }
+      .note { color: var(--muted); font-size: 11px; margin-top: 12px; line-height: 1.6; }
+      label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>ECHOVISION · BANCO DE PRUEBAS DE AUDIO</h1>
+    <p class="sub">Dev 2 — captura Web Audio, DSP y publicacion de telemetria</p>
+
+    <div class="controls">
+      <button id="startBtn">Iniciar captura</button>
+      <button id="stopBtn">Detener</button>
+      <button id="resetBtn">Reiniciar suelo de ruido</button>
+      <button id="simulateBtn">Simular sin microfono</button>
+      <button id="frameBtn">Activar frames YAMNet</button>
+      <label>Transporte
+        <select id="transport">
+          <option value="mock">mock (BroadcastChannel)</option>
+          <option value="supabase">supabase (Realtime)</option>
+        </select>
+      </label>
+      <label>Offset SPL (dB)
+        <input id="splOffset" type="number" step="1" style="width: 72px" />
+      </label>
+      <label>Separacion mics (m)
+        <input id="micDistance" type="number" step="0.01" style="width: 72px" />
+      </label>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Dispositivo de captura</h2>
+        <dl>
+          <dt>Estado</dt><dd id="statusActive">DETENIDO</dd>
+          <dt>Microfono</dt><dd id="statusDevice">-</dd>
+          <dt>Frecuencia</dt><dd id="statusRate">-</dd>
+          <dt>Canales</dt><dd id="statusChannels">-</dd>
+          <dt>Procesado</dt><dd id="statusFlags">-</dd>
+        </dl>
+        <div id="warnings"></div>
+        <p class="note">
+          Las tres banderas de procesado deben estar en <strong>off</strong>. El AGC
+          reescala la senal y destruye la medicion de nivel; la cancelacion de eco y la
+          supresion de ruido alteran la fase entre canales, que es de donde sale la
+          direccion.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>Nivel sonoro</h2>
+        <div><span class="big" id="dbValue">0.0</span> <span style="color: var(--muted)">dB(A) estimado</span></div>
+        <div class="meter">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="mark floor" id="floorMark"></div>
+          <div class="mark threshold" id="thresholdMark"></div>
+        </div>
+        <div class="scale"><span>20</span><span>60</span><span>100</span><span>120</span></div>
+        <dl style="margin-top: 12px">
+          <dt>Suelo de ruido</dt><dd id="floorValue">0.0</dd>
+          <dt>Umbral de evento</dt><dd id="thresholdValue">0.0</dd>
+          <dt>Pico de sesion</dt><dd id="peakValue">0.0</dd>
+          <dt>Riesgo</dt><dd><span class="pill risk-NORMAL" id="riskValue">NORMAL</span></dd>
+        </dl>
+        <p class="note">
+          <strong>Estimado, no absoluto.</strong> La Web Audio API solo entrega nivel
+          relativo a fondo de escala. Para acercarlo a dB SPL reales, pon un sonometro
+          al lado y ajusta el offset hasta que coincidan; queda guardado.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>Direccion (GCC-PHAT)</h2>
+        <div class="compass">
+          <span class="compass-label cl-front">FRENTE</span>
+          <span class="compass-label cl-back">—</span>
+          <span class="compass-label cl-left">IZQ</span>
+          <span class="compass-label cl-right">DER</span>
+          <div class="needle" id="needle"></div>
+        </div>
+        <dl style="margin-top: 12px">
+          <dt>Azimut</dt><dd><span id="azimuthValue">0.0</span> grados</dd>
+          <dt>Confianza espacial</dt><dd id="confValue">0.00</dd>
+        </dl>
+        <p class="note">
+          Con dos microfonos no se distingue delante de detras, asi que el rango util es
+          -90 a +90. Si la confianza es 0 el dispositivo es mono: no hay direccion real y
+          la aguja se atenua en lugar de inventar un angulo.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>Publicacion</h2>
+        <dl>
+          <dt>Transporte</dt><dd id="transportName">-</dd>
+          <dt>Mensajes enviados</dt><dd id="publishedCount">0</dd>
+          <dt>Descartados por ritmo</dt><dd id="droppedCount">0</dd>
+          <dt>Frames YAMNet</dt><dd id="frameCount">0</dd>
+          <dt>Ultimo frame</dt><dd id="frameInfo">-</dd>
+        </dl>
+        <p class="note">
+          La telemetria continua se limita a 20 Hz; el HUD interpola hasta 60 FPS. Los
+          onsets nunca se descartan. Con transporte <em>mock</em>, otra pestana puede
+          escuchar el BroadcastChannel <code>hud-telemetry</code> y recibir lo mismo que
+          llegaria por Supabase.
+        </p>
+      </section>
+
+      <section class="panel" style="grid-column: 1 / -1">
+        <h2>Registro de eventos</h2>
+        <ul id="eventList"></ul>
+      </section>
+    </div>
+
+    <script type="module" src="/src/audio/testPage.ts"></script>
+  </body>
+</html>
