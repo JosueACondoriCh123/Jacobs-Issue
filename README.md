@@ -37,38 +37,38 @@ Jacobs Issue operates as an integrated four-stage sensory pipeline running concu
 
 ```mermaid
 flowchart TB
-    subgraph AudioCapture["🎛️ 1. Edge DSP & Direction Finding (Dev 2)"]
+    subgraph AudioCapture["🎛️ 1. Edge DSP and Direction Finding (Dev 2)"]
         MIC[("Stereo Microphones / AudioInput")] --> WAW["Web Audio Worklet (48 kHz)"]
-        WAW -->|Stereo Phase Correlation| GCC["GCC-PHAT TDoA Engine (-90°..+90°)"]
-        WAW -->|Biquad Filter Cascade| AWEIGHT["IEC 61672 Class 1 A-Weighting"]
+        WAW -->|"Stereo Phase Correlation"| GCC["GCC-PHAT TDoA Engine (-90°..+90°)"]
+        WAW -->|"Biquad Filter Cascade"| AWEIGHT["IEC 61672 Class 1 A-Weighting"]
         AWEIGHT --> NOISEFLOOR["Adaptive 10th-Percentile Noise Floor Tracker"]
-        WAW -->|FIR Antialias Filter| DECIM["16 kHz Decimator (15,360 Samples / 0.96s)"]
+        WAW -->|"FIR Antialias Filter"| DECIM["16 kHz Decimator (15360 Samples / 0.96s)"]
     end
 
     subgraph EdgeAI["🧠 2. Neural Sound Event Detection (Dev 4)"]
         DECIM --> YAMNET["YAMNet Classifier (TensorFlow.js)"]
-        YAMNET --> RISK["Risk Classification Engine (NORMAL | ADVISORY | CRITICAL)"]
+        YAMNET --> RISK["Risk Classification Engine (NORMAL / ADVISORY / CRITICAL)"]
     end
 
     subgraph ClientHUD["🛡️ 3. PhonoSpatial Visual HUD (Dev 1)"]
-        GCC -->|Azimuth 0°..360°| TELEM["Telemetry Normalizer & Bus"]
-        NOISEFLOOR -->|dB(A) Intensity & Floor| TELEM
-        RISK -->|Label & Urgency| TELEM
+        GCC -->|"Azimuth 0°..360°"| TELEM["Telemetry Normalizer and Bus"]
+        NOISEFLOOR -->|"dBA Intensity and Noise Floor"| TELEM
+        RISK -->|"Label and Urgency Tier"| TELEM
         TELEM --> CANVAS["360° Canvas 2D Radar Reticle"]
-        TELEM --> THREE["Three.js Spatial Depth & Reticle Grid"]
+        TELEM --> THREE["Three.js Spatial Depth and Reticle Grid"]
     end
 
-    subgraph Backend["⚡ 4. Cloud Mesh & Ingestion Fabric (Dev 3)"]
-        NOISEFLOOR -.->|POST /api/v1/calibration/baseline| BASELINE[("noise_baselines")]
-        TELEM -.->|POST /api/v1/devices| DEVICES[("sensor_devices")]
-        RISK -.->|POST /api/v1/events| EVENTS[("acoustic_event_logs")]
-        EVENTS -->|Replica Identity Full| REALTIME["Supabase Realtime Broadcast (60 FPS)"]
-        EVENTS -->|Trigger on_critical_event| QUEUE["notification_dispatch_logs"]
+    subgraph Backend["⚡ 4. Cloud Mesh and Ingestion Fabric (Dev 3)"]
+        NOISEFLOOR -.->|"POST /api/v1/calibration/baseline"| BASELINE[("noise_baselines")]
+        TELEM -.->|"POST /api/v1/devices"| DEVICES[("sensor_devices")]
+        RISK -.->|"POST /api/v1/events"| EVENTS[("acoustic_event_logs")]
+        EVENTS -->|"Replica Identity Full"| REALTIME["Supabase Realtime Broadcast (60 FPS)"]
+        EVENTS -->|"Trigger on_critical_event"| QUEUE["notification_dispatch_logs"]
         QUEUE --> DISPATCH["Edge Function: notify-emergency (Gmail / Resend / Webhook)"]
         EVENTS --> LLM["Edge Function: scene-narrative (Gemini AI Synthesis)"]
     end
 
-    REALTIME -.->|Real-time Ingestion / Multi-Client Sync| ClientHUD
+    REALTIME -.->|"Real-time Ingestion / Multi-Client Sync"| ClientHUD
 ```
 
 ---

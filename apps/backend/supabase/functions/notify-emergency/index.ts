@@ -9,12 +9,9 @@ Deno.serve(createEmergencyHandler({
   event:async (userId,eventId)=>{const {data,error}=await admin.from('acoustic_event_logs').select('*').eq('id',eventId).eq('user_id',userId).maybeSingle();if(error)throw error;return data},
   contacts:async userId=>{const {data,error}=await admin.from('emergency_contacts').select('id,name,email').eq('user_id',userId).eq('is_active',true);if(error)throw error;return data ?? []},
   queued:async (event,contact)=>{
-    const {data,error}=await admin.from('notification_dispatch_logs').select('id,status,dispatch_type,payload').eq('event_id',event.id).eq('user_id',event.user_id).eq('recipient',contact.email).order('sent_at',{ascending:false}).limit(1).maybeSingle()
+    const {data,error}=await admin.rpc('claim_emergency_dispatch',{p_event_id:event.id,p_contact_id:contact.id,p_user_id:event.user_id})
     if(error)throw error
-    if(data)return data
-    const inserted=await admin.from('notification_dispatch_logs').insert({event_id:event.id,user_id:event.user_id,dispatch_type:'RESEND',recipient:contact.email,status:'PENDING',payload:{contact_id:contact.id}}).select('id,status,dispatch_type,payload').single()
-    if(inserted.error)throw inserted.error
-    return inserted.data
+    return data
   },
   mark:async (id,status,payload,errorMessage)=>{const {error}=await admin.from('notification_dispatch_logs').update({dispatch_type:'RESEND',status,payload,error_message:errorMessage,sent_at:new Date().toISOString()}).eq('id',id);if(error)throw error},
 }))

@@ -121,8 +121,7 @@ function magnitudeSpectrum(frame: Float64Array): Float64Array {
 /**
  * Log-mel de toda la forma de onda: filas = frames STFT de 10 ms.
  * Equivale a features.py::waveform_to_log_mel_spectrogram().
- * La magnitud via FFT-512: el parche 96x64 completo cuesta ~10 ms
- * en hilo principal, dentro del presupuesto del circuito en vivo.
+ * FFT-512 con 257 bins; la latencia depende del dispositivo y no se garantiza.
  */
 export function waveformToLogMel(pcm: Float32Array): Float64Array[] {
   const window = periodicHann(STFT_WINDOW);
@@ -146,9 +145,8 @@ export function waveformToLogMel(pcm: Float32Array): Float64Array[] {
 
 /**
  * Parche 96x64 listo para el grafo. Equivale a
- * features.py::waveform_to_examples(): divide en ejemplos no solapados de
- * 96 frames; si sobra menos de un parche se descarta, si la forma es mas
- * corta se rellena con ceros.
+ * features.py::waveform_to_examples(): parches de 96 frames, salto de 48.
+ * Se rellena la forma de onda antes de calcular características.
  */
 export function waveformToExamples(pcm: Float32Array): Float32Array[] {
   // Official pad_waveform: pad PCM, not log-mel. Silence is log(0.001), not 0.

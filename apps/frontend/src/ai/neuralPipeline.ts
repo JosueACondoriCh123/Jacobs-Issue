@@ -24,11 +24,9 @@ export class NeuralPipeline {
   private latest: NeuralFrame | null = null
   private busy = false
   private generation = 0
-  private lastKey = ''
-  private lastAt = 0
   private dedupeKeys = new Map<string,number>()
   constructor(private options: NeuralPipelineOptions) {}
-  reset() { this.generation++; this.latest=null; this.lastKey=''; this.lastAt=0; this.dedupeKeys.clear() }
+  reset() { this.generation++; this.latest=null; this.dedupeKeys.clear() }
   push(frame: NeuralFrame) {
     this.latest=frame
     if (!this.busy) void this.drain()
@@ -67,7 +65,6 @@ export class NeuralPipeline {
             const confirmed={...event,persistence:'SAVED' as const,emittedAt:new Date().toISOString()}
             this.options.onEvent(confirmed)
             this.options.onConfirmed(confirmed)
-            this.lastKey=key; this.lastAt=now
           } catch (error) {
             if (generation !== this.generation) continue
             this.options.onEvent({...event,persistence:'ERROR'})

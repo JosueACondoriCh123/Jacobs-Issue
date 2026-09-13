@@ -20,7 +20,7 @@ import type { RiskLevel } from '../types/hud'
  * El despacho llama DE VERDAD a la Edge Function `notify-emergency` y luego
  * informa de lo que ocurrió realmente, que no siempre es lo que parece:
  *
- *   SENT          la función usó Resend o un webhook: salió algo al mundo.
+ *   SENT          Resend aceptó el correo; no confirma entrega.
  *   LOGGED_ONLY   respondió éxito, pero sin RESEND_API_KEY ni EMERGENCY_WEBHOOK_URL
  *                 solo hizo un console.log y escribió la auditoría. NADIE recibió nada.
  *   NOT_DEPLOYED  la función no existe en el proyecto (404).
@@ -406,10 +406,10 @@ export function SafetyTree() {
                     />
                     <span>
                       {a === 'email'
-                        ? 'Correo con geolocalización'
+                        ? 'Correo real (Resend)'
                         : a === 'webhook'
-                          ? 'Webhook domótica (Hue)'
-                          : 'Estroboscopio perimetral'}
+                          ? 'Webhook domótica (no conectado)'
+                          : 'Estroboscopio (no conectado)'}
                     </span>
                   </label>
                 ))}

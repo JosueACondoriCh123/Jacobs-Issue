@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 // montaje directo del HUD. `App.tsx` sigue intacto y se renderiza dentro del
 // shell del OS como la pantalla /hud.
 import Root from './Root'
+import { migrateLocalStorage } from './shell/storageMigration'
 import './styles.css'
 
 /*
@@ -24,4 +25,8 @@ import './styles.css'
  * pantalla cubre el resto de casos. En produccion StrictMode no duplica efectos,
  * asi que `pnpm build` no estaba afectado.
  */
+// Antes de montar nada: recupera los datos guardados bajo el nombre anterior
+// del proyecto, para que el renombrado no le borre la calibracion a nadie.
+migrateLocalStorage()
+
 ReactDOM.createRoot(document.getElementById('root')!).render(<Root />)

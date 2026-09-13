@@ -29,7 +29,7 @@ interface TfLike {
   tensor(data: Float32Array, shape: number[]): TfTensor;
   loadGraphModel(url: string, opts?: Record<string, unknown>): Promise<TfGraphModel>;
   loadLayersModel(url: string): Promise<TfLayersModel>;
-  setBackend(name: string): Promise<void>;
+  setBackend(name: string): Promise<boolean>;
   ready(): Promise<void>;
 }
 
@@ -104,7 +104,7 @@ export class YamnetClassifier implements AsyncSoundClassifier {
     }
     await tf.ready();
     try {
-      await tf.setBackend('webgl');
+      if (!(await tf.setBackend('webgl'))) await tf.setBackend('cpu');
     } catch {
       await tf.setBackend('cpu');
     }
@@ -115,10 +115,7 @@ export class YamnetClassifier implements AsyncSoundClassifier {
       opts.modelUrl ??
       `${import.meta.env.BASE_URL ?? '/'}models/yamnet/model.json`;
     try {
-      this.model =
-        url.endsWith('model.json') && url.includes('/models/yamnet/')
-          ? await tf.loadLayersModel(url)
-          : await tf.loadGraphModel(url, { fromTFHub: url.includes('tfhub.dev') });
+      this.model = await tf.loadLayersModel(url);
     } catch (err) {
       this.model = null;
       throw new Error(
@@ -132,7 +129,8 @@ export class YamnetClassifier implements AsyncSoundClassifier {
     if (!labelResponse.ok) {this.dispose();throw new Error('No se pudo cargar el mapa YAMNet');}
     this.labels=parseClassMapCsv(await labelResponse.text());
     if (this.labels.length!==521 || Array.from(this.labels).some(name=>!name)) {this.dispose();throw new Error('Mapa YAMNet incompleto');}
-    await this.classifyAsync(new Float32Array(YAMNET_SAMPLES));
+    try { await this.classifyAsync(new Float32Array(YAMNET_SAMPLES)); }
+    catch(error) { this.dispose();throw error; }
     report({ phase:'ready',progress:1 });
     this.backend='yamnet';
   }
@@ -141,20 +139,9 @@ export class YamnetClassifier implements AsyncSoundClassifier {
     this.labels = labels.slice();
   }
 
-  classify(pcm: Float32Array, features?: Float32Array): RankedPrediction[] {
-    if (!this.model || !this.tf) throw new Error('yamnet: llama a load() antes de classify().');
-    if (pcm.length !== YAMNET_SAMPLES) {
-      throw new Error(`yamnet: ventana de ${pcm.length}, se esperan ${YAMNET_SAMPLES}.`);
-    }
-    const patch = features ?? frameToPatch(pcm);
-    const input = this.tf.tensor(patch, [1, 96, 64]);
-    try {
-      const out = this.model.execute?.(input, 'scores') as TfTensor | undefined;
-      if (!out) throw new Error('yamnet: el modelo no expone execute() sincrono.');
-      return scoresToRanked(out, this.labels);
-    } finally {
-      input.dispose();
-    }
+  classify(_pcm: Float32Array): RankedPrediction[] {
+    if (!this.model) throw new Error('yamnet: llama a load() antes de classifyAsync().');
+    throw new Error('YAMNet requiere classifyAsync() para leer tensores sin bloquear.');
   }
 
   async classifyAsync(pcm: Float32Array, features?: Float32Array): Promise<RankedPrediction[]> {
@@ -167,7 +154,9 @@ export class YamnetClassifier implements AsyncSoundClassifier {
     try {
       if ('predict' in this.model) {
         const out=this.model.predict(input) as TfTensor;
-        return await scoresToRankedAsync(out,this.labels);
+        const ranked=await scoresToRankedAsync(out,this.labels);
+        if(ranked.length!==YAMNET_CLASSES) throw new Error('YAMNet no devolvió las 521 clases oficiales');
+        return ranked;
       }
       const out = (await this.model.executeAsync?.(input, ['scores'])) as TfTensor | undefined;
       if (!out) throw new Error('yamnet: el modelo no expone execute ni executeAsync.');

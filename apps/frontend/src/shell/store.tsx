@@ -352,8 +352,28 @@ export function EchoStoreProvider({ children }: { children: ReactNode }) {
       }
     })
 
+    /*
+     * La instantanea NO llega a la vez que el onset: el worklet la difiere 0.45 s
+     * a proposito, para que el evento quede centrado en la forma de onda en vez
+     * de pegado al borde derecho. Eso significa que cuando se crea el evento su
+     * audio todavia no existe, asi que hay que rellenarlo al llegar.
+     *
+     * Antes se leia `pendingSnapshot` en el momento del onset y parecia
+     * funcionar, pero lo que se adjuntaba era la instantanea del evento ANTERIOR:
+     * un fallo silencioso que solo se nota comparando la onda con el evento.
+     */
     const offSnap = engine.onSnapshot((s) => {
       pendingSnapshot.current = s
+      setEvents((prev) => {
+        // Se busca el evento mas reciente sin audio dentro de una ventana algo
+        // mayor que el retardo de la instantanea; fuera de ella, el audio
+        // pertenece a otro evento y adjuntarlo seria peor que dejarlo vacio.
+        const idx = prev.findIndex((e) => e.pcm === null && Date.now() - e.at < 1500)
+        if (idx === -1) return prev
+        const next = [...prev]
+        next[idx] = { ...next[idx], pcm: s.pcm }
+        return next
+      })
     })
 
     const offTelemetry = engine.onTelemetry((t) => {
@@ -375,8 +395,8 @@ export function EchoStoreProvider({ children }: { children: ReactNode }) {
 
       if (!t.isOnset) return
 
-      const snap = pendingSnapshot.current
-      pendingSnapshot.current = null
+      // pcm queda null a proposito: lo rellena el manejador de instantaneas
+      // unos 450 ms despues, cuando el worklet envia el audio centrado.
       const event: AcousticEvent = {
         id: `ev_${now.toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
         at: now,
@@ -387,7 +407,7 @@ export function EchoStoreProvider({ children }: { children: ReactNode }) {
         spatialConfidence: t.spatialConfidence,
         noiseFloorDb: Math.round(t.noiseFloorDb * 10) / 10,
         zone: zoneRef.current,
-        pcm: snap ? snap.pcm : null,
+        pcm: null,
         breakdown: [],
         reviewed: false,
         falsePositive: false,

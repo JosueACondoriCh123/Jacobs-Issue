@@ -2,8 +2,10 @@ import type { CSSProperties } from 'react'
 import { getAmbientState } from '../lib/miniHudState'
 import type { HUDTelemetryEvent } from '../types/hud'
 import type { SignalState } from '../lib/signalState'
+import type { ModelState, PersistenceState } from '../ai/neuralPipeline'
 
 interface MiniHudProps {
+  pipeline?: { model: ModelState; persistence: PersistenceState; connectionError: string | null }
   signal?: SignalState
   telemetry: HUDTelemetryEvent
   isFloating: boolean
@@ -16,14 +18,14 @@ const barStyle = (height: number, delay: number) =>
     '--bar-delay': `${delay}ms`,
   }) as CSSProperties
 
-export function MiniHud({ telemetry, isFloating, onClose, signal = telemetry.source === 'idle' ? 'WAITING' : 'LIVE' }: MiniHudProps) {
+export function MiniHud({ telemetry, isFloating, onClose, pipeline, signal = telemetry.source === 'idle' ? 'WAITING' : 'LIVE' }: MiniHudProps) {
   const ambient = getAmbientState(telemetry,signal)
   const energy = signal === 'LIVE' ? Math.min(1, Math.max(0, telemetry.intensity / 105)) : 0
   const bars = Array.from({ length: 17 }, (_, index) => {
     const distance = Math.abs(index - 8) / 8
     const shape = 1 - distance * 0.68
     const ripple = 0.82 + Math.sin(index * 1.7) * 0.18
-    return Math.round(12 + energy * shape * ripple * 74)
+    return Math.round(energy * shape * ripple * 86)
   })
 
   return (
@@ -65,6 +67,11 @@ export function MiniHud({ telemetry, isFloating, onClose, signal = telemetry.sou
         <p>{ambient.message}</p>
       </div>
 
+      {pipeline ? <div className="mini-runtime-status" role="status">
+        <span>YAMNet: {pipeline.model === 'ERROR' ? 'No disponible' : pipeline.model}</span>
+        <span>Evento: {pipeline.persistence === 'ERROR' ? 'No guardado' : pipeline.persistence === 'SAVED' ? 'Guardado' : pipeline.persistence === 'SAVING' ? 'Guardando…' : 'Solo local'}</span>
+        {pipeline.connectionError ? <span title={pipeline.connectionError}>Error de conexión · nivel local</span> : null}
+      </div> : null}
       <footer className="mini-hud-footer">
         <span>
           <small>FUENTE</small>

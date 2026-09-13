@@ -9,3 +9,4 @@
 [hidden] { display:none !important; }
 .evx-escalation-alert { position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:1000; width:min(680px,calc(100vw - 32px)); }
 .mini-hud-fallback { z-index:999; }
+.mini-runtime-status { display:flex; flex-wrap:wrap; gap:4px 10px; padding:0 18px 8px; font-size:10px; color:#a8bbc7; }

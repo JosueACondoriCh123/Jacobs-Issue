@@ -2,7 +2,8 @@
 Architecture: tensorflow/models/research/audioset/yamnet (Apache-2.0).
 Requires tensorflow==2.20.0 tf-keras==2.20.1 h5py==3.14.0.
 """
-import hashlib, io, json, pathlib, urllib.request, wave
+import hashlib, importlib, io, json, os, pathlib, sys, urllib.request, wave
+os.environ['TF_USE_LEGACY_KERAS']='1'
 import numpy as np
 import tensorflow as tf
 import tf_keras as keras
@@ -19,6 +20,9 @@ def download(url,path):
 weights=CACHE/'yamnet.h5'
 download('https://storage.googleapis.com/audioset/yamnet.h5',weights)
 (OUT/'yamnet_class_map.csv').write_bytes(download('https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv',CACHE/'yamnet_class_map.csv'))
+(OUT/'LICENSE').write_bytes(download('https://raw.githubusercontent.com/tensorflow/models/master/LICENSE',CACHE/'LICENSE'))
+for module in ['features','params','yamnet']:
+    download('https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/'+module+'.py',CACHE/(module+'.py'))
 x=keras.layers.Input(shape=(96,64),name='patch')
 y=keras.layers.Reshape((96,64,1))(x)
 def bn(t,name):
@@ -56,6 +60,15 @@ mag=tf.abs(tf.signal.stft(padded,frame_length=400,frame_step=160,fft_length=512)
 mel=tf.signal.linear_to_mel_weight_matrix(64,257,16000,125,7500)
 patch=tf.math.log(tf.matmul(mag,mel)+0.001).numpy()
 scores=model(patch[None],training=False).numpy()[0]
+# Independent reference: the actual upstream waveform-to-scores network.
+sys.path.insert(0,str(CACHE.resolve()))
+official=importlib.import_module('yamnet').yamnet_frames_model(importlib.import_module('params').Params())
+official.load_weights(str(weights))
+official_scores,_,official_mel=official(tf.constant(pcm),training=False)
+assert np.max(np.abs(patch-official_mel.numpy())) < 0.001
+assert np.max(np.abs(scores-official_scores.numpy()[0])) < 0.001
+patch=official_mel.numpy()
+scores=official_scores.numpy()[0]
 fixtures=ROOT/'src/ai/fixtures'
 fixtures.mkdir(parents=True,exist_ok=True)
 (fixtures/'yamnet-reference.json').write_text(json.dumps({'source':'https://storage.googleapis.com/audioset/speech_whistling2.wav','pcm':pcm.tolist(),'patch':patch.reshape(-1).tolist(),'scores':scores.tolist()}),encoding='utf-8')

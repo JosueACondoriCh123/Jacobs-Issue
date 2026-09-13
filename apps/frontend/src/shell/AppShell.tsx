@@ -66,11 +66,11 @@ function Screens() {
  * continuar. Cortarla al cambiar de vista dejaría huecos en el historial.
  */
 function CaptureControl() {
-  const { isRunning, start, stop, status, error, telemetry, transportName,miniHud,signal,modelState,splOffsetDb,setSplOffsetDb } = useEchoStore()
+  const { isRunning, start, stop, status, error, telemetry, transportName,miniHud,signal,modelState,splOffsetDb,setSplOffsetDb,persistenceState,persistenceError,modelError,hud } = useEchoStore()
 
   return (
     <div className="evx-capture">
-      {telemetry ? (
+      {telemetry && signal === 'LIVE' ? (
         <div className="evx-live-readout">
           <span className="evx-live-db">{telemetry.db.toFixed(1)}</span>
           <small>dB estimados</small>
@@ -88,6 +88,7 @@ function CaptureControl() {
 
       <button type="button" className="evx-ghost-btn" onClick={() => void miniHud.open()}>MINI HUD</button>
       <span className="evx-transport">YAMNet: {modelState} · {signal}</span>
+      <span className="evx-transport" title={persistenceError ?? modelError ?? hud.error ?? undefined}>{persistenceState === 'ERROR' ? 'NO GUARDADO' : persistenceState}{hud.error ? ' · ERROR DE CONEXIÓN' : ''}</span>
       <details className="evx-calibration"><summary>Calibración de nivel</summary><label>Offset dB <input type="number" min={-140} max={140} value={splOffsetDb} onChange={e => setSplOffsetDb(Number(e.target.value))}/></label><p>Ajusta contra un sonómetro de referencia. El nivel sigue siendo estimado; el suelo de ruido no calibra el micrófono.</p></details>
       <span className="evx-transport" title="Transporte de telemetría">
         {transportName}
